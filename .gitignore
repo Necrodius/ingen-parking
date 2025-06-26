@@ -18,7 +18,6 @@ env/
 
 # ---- .env ----
 .env
-.env.*
 
 # ---- Docker ----
 *.log
