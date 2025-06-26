@@ -1,5 +1,3 @@
-# This file defines the Docker services for the Ingenuity Smart Parking project.
-
 services:
   db:
     image: postgres:17.5
@@ -11,14 +9,22 @@ services:
       - db_data:/var/lib/postgresql/data
     ports:
       - "5432:5432" # default PostgreSQL port (host:container)
+
   backend:
-    build: ../backend
+    build:
+      context: ../backend
     container_name: ingen-parking-api
+    restart: unless-stopped
     env_file:
       - ../.env
     depends_on:
       - db
+    working_dir: /app
+    command: gunicorn app:app --bind 0.0.0.0:8000
     ports:
       - "8000:8000" # default Flask port (host:container)
+    volumes:
+      - ../backend:/app
+
 volumes:
   db_data:
