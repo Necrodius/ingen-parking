@@ -1,0 +1,24 @@
+#### Frontend ####
+
+# Node
+node_modules/
+dist/
+
+#### Backend ####
+
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+
+#### Env & secrets ####
+.env
+.env.*
+
+#### Docker ####
+*.log
+
+#### IDEs ####
+.vscode/
+.idea/
