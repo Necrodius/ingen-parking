@@ -1,10 +1,14 @@
-#### Frontend ####
+# .gitignore for Ingenuity Smart Parking Project
+# This file specifies intentionally untracked files that Git should ignore.
+# It is used to avoid committing files that are not necessary for the project.
+
+# ---- Frontend ----
 
 # Node
 node_modules/
 dist/
 
-#### Backend ####
+# ---- Backend ----
 
 # Python
 __pycache__/
@@ -12,13 +16,13 @@ __pycache__/
 venv/
 env/
 
-#### Env & secrets ####
+# ---- .env ----
 .env
 .env.*
 
-#### Docker ####
+# ---- Docker ----
 *.log
 
-#### IDEs ####
+# ---- IDE ----
 .vscode/
 .idea/
