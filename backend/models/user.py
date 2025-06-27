@@ -1,36 +1,33 @@
 # This file defines the User model for the application.
 
+from sqlalchemy import Column, Integer, String, Boolean, Enum as PgEnum
+from sqlalchemy.orm import relationship
+from enum import Enum
 from app import db
 from .mixins import TimestampMixin
-from enum import Enum
 
 class UserRole(str, Enum):
     ADMIN = "admin"
     USER = "user"
 
-
 class User(db.Model, TimestampMixin):
     __tablename__ = "users"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
-    email = db.Column(db.String(120), nullable=False, unique=True, index=True)
+    email = Column(String(120), nullable=False, unique=True, index=True)
 
-    password_hash = db.Column(db.String(128), nullable=False)
+    password_hash = Column(String(128), nullable=False)
 
-    first_name = db.Column(db.String(120), nullable=False)
+    first_name = Column(String(120), nullable=False)
     
-    last_name = db.Column(db.String(120), nullable=False)
+    last_name = Column(String(120), nullable=False)
 
-    role = db.Column(
-        db.Enum(UserRole), nullable=False, default=UserRole.USER
-    )
+    role = Column(PgEnum(UserRole), nullable=False, default=UserRole.USER)
     
-    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    is_active = Column(Boolean, nullable=False, default=True)
 
-    reservations = db.relationship(
-        "Reservation", back_populates="user", cascade="all, delete-orphan"
-    )
+    reservations = relationship("Reservation", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<User {self.email} ({self.role})>"

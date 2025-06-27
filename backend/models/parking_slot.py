@@ -1,26 +1,24 @@
-# It defines the Parking Location model for the application.
+# This file defines the Parking Location model for the application.
 
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, text
+from sqlalchemy.orm import relationship
 from app import db
 from .mixins import TimestampMixin
 
 class ParkingSlot(db.Model, TimestampMixin):
     __tablename__ = "parking_slots"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
-    slot_label = db.Column(db.String(20), nullable=False)
+    slot_label = Column(String(20), nullable=True, server_default="Slot")
 
-    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    is_available = Column(Boolean, nullable=False, server_default=text("true"))
 
-    location_id = db.Column(
-        db.Integer, db.ForeignKey("parking_locations.id"), nullable=False
-    )
+    location_id = Column(Integer, ForeignKey("parking_locations.id"), nullable=False)
 
-    location = db.relationship("ParkingLocation", back_populates="slots")
+    location = relationship("ParkingLocation", back_populates="slots")
 
-    reservations = db.relationship(
-        "Reservation", back_populates="slot", cascade="all, delete-orphan"
-    )
+    reservations = relationship("Reservation", back_populates="slot", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Slot {self.slot_label} @ {self.location.name}>"

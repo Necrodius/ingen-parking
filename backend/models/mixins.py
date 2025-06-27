@@ -2,18 +2,11 @@
 # They automatically set to the current time when a record is created (in DB) or updated (in backend).
 
 
-from datetime import datetime
+from sqlalchemy import Column, DateTime, func
 from app import db
 
 class TimestampMixin:
-    created_at = db.Column(
-        db.DateTime,
-        server_default=db.func.now(),
-        nullable=False,
-    )
-    updated_at = db.Column(
-        db.DateTime,
-        server_default=db.func.now(),
-        onupdate=db.func.now(),
-        nullable=False,
-    )
+
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
