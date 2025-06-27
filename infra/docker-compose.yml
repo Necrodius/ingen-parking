@@ -1,3 +1,5 @@
+# This file defines the services, networks, and volumes for the Ingen Parking application using Docker Compose
+
 services:
   db:
     image: postgres:17.5

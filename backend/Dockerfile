@@ -1,3 +1,7 @@
+# This Dockerfile sets up a Python environment for a Flask application using Gunicorn as the WSGI server.
+# It installs dependencies from a `requirements.txt` file, copies the application code into the container,
+# and exposes port 8000 for incoming traffic.
+
 FROM python:3.12-slim
 
 WORKDIR /app
