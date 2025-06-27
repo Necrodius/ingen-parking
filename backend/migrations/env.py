@@ -1,3 +1,9 @@
+# This file is part of the Alembic migration environment.
+# It configures the Alembic context and runs migrations against the database.
+# It loads the database URL from environment variables and sets up the SQLAlchemy engine.
+# It also imports the application's models to ensure they are included in the migration context.
+# It is typically used to manage database schema changes in a Flask application.
+
 import os, sys
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
@@ -9,7 +15,7 @@ load_dotenv()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app import db
-import models.user
+import models
 
 config = context.config
 if config.config_file_name:

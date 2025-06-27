@@ -1,18 +1,26 @@
 # It defines the Parking Location model for the application.
 
-from app import db 
+from app import db
+from .mixins import TimestampMixin
 
-class User(db.Model):
+class ParkingSlot(db.Model, TimestampMixin):
     __tablename__ = "parking_slots"
 
     id = db.Column(db.Integer, primary_key=True)
 
-    slot_name = db.Column(db.Integer, nullable=False)
+    slot_label = db.Column(db.String(20), nullable=False)
 
-    location = db.Column(db.String(120), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
 
-    is_available = db.Column(db.Boolean, default=True)
+    location_id = db.Column(
+        db.Integer, db.ForeignKey("parking_locations.id"), nullable=False
+    )
 
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    location = db.relationship("ParkingLocation", back_populates="slots")
 
-    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    reservations = db.relationship(
+        "Reservation", back_populates="slot", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<Slot {self.slot_label} @ {self.location.name}>"
