@@ -8,5 +8,5 @@ class ParkingSlotSchema(SQLAlchemyAutoSchema):
         include_fk = True
         ordered = True
 
-slot_schema   = ParkingSlotSchema()
-slots_schema  = ParkingSlotSchema(many=True)
+parking_slot_schema   = ParkingSlotSchema()
+parking_slots_schema  = ParkingSlotSchema(many=True)

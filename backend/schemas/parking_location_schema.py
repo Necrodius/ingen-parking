@@ -8,5 +8,5 @@ class ParkingLocationSchema(SQLAlchemyAutoSchema):
         include_fk = True
         ordered = True
 
-location_schema   = ParkingLocationSchema()
-locations_schema  = ParkingLocationSchema(many=True)
+parking_location_schema   = ParkingLocationSchema()
+parking_locations_schema  = ParkingLocationSchema(many=True)
