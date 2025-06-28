@@ -3,14 +3,7 @@
 from datetime import datetime, timedelta, UTC
 
 from app import create_app, db
-from models import (
-    User,
-    UserRole,
-    ParkingLocation,
-    ParkingSlot,
-    Reservation,
-    ReservationStatus,
-)
+from models import User, UserRole, ParkingLocation, ParkingSlot, Reservation, ReservationStatus
 
 def hash_password(raw: str) -> str:
     # Temporary dummy hash
@@ -29,7 +22,7 @@ def seed() -> None:
             password_hash=hash_password("adminpw"),
             first_name="Alice",
             last_name="Admin",
-            role=UserRole.ADMIN,
+            role=UserRole.admin,
         )
 
         admin_2 = User(
@@ -37,7 +30,7 @@ def seed() -> None:
             password_hash=hash_password("adminpw2"),
             first_name="Carlos",
             last_name="Super",
-            role=UserRole.ADMIN,
+            role=UserRole.admin,
         )
 
         user_1 = User(
@@ -45,7 +38,7 @@ def seed() -> None:
             password_hash=hash_password("driver1"),
             first_name="Daisy",
             last_name="Driver",
-            role=UserRole.USER,
+            role=UserRole.user,
         )
 
         user_2 = User(
@@ -53,7 +46,7 @@ def seed() -> None:
             password_hash=hash_password("driver2"),
             first_name="Ernie",
             last_name="Driver",
-            role=UserRole.USER,
+            role=UserRole.user,
         )
 
         user_3 = User(
@@ -61,7 +54,7 @@ def seed() -> None:
             password_hash=hash_password("driver3"),
             first_name="Felix",
             last_name="Driver",
-            role=UserRole.USER,
+            role=UserRole.user,
         )
 
         db.session.add_all([admin_1, admin_2, user_1, user_2, user_3])
@@ -103,7 +96,7 @@ def seed() -> None:
             slot_id=slot_map["A1"].id,
             start_ts=now,
             end_ts=now + timedelta(hours=2),
-            status=ReservationStatus.BOOKED,
+            status=ReservationStatus.booked,
         )
 
         res_2 = Reservation(
@@ -111,7 +104,7 @@ def seed() -> None:
             slot_id=slot_map["B2"].id,
             start_ts=now - timedelta(hours=1),
             end_ts=now + timedelta(hours=1),
-            status=ReservationStatus.ONGOING,
+            status=ReservationStatus.ongoing,
         )
 
         res_3 = Reservation(
@@ -119,7 +112,7 @@ def seed() -> None:
             slot_id=slot_map["A3"].id,
             start_ts=now - timedelta(days=1, hours=3),
             end_ts=now - timedelta(days=1, hours=1),
-            status=ReservationStatus.FINISHED,
+            status=ReservationStatus.finished,
         )
 
         db.session.add_all([res_1, res_2, res_3])

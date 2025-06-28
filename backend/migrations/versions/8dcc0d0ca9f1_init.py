@@ -1,8 +1,8 @@
-"""initial schema
+"""init
 
-Revision ID: e1cb630c04d2
+Revision ID: 8dcc0d0ca9f1
 Revises: 
-Create Date: 2025-06-27 05:57:02.025825
+Create Date: 2025-06-28 02:36:01.695462
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'e1cb630c04d2'
+revision: str = '8dcc0d0ca9f1'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -37,8 +37,8 @@ def upgrade() -> None:
     sa.Column('password_hash', sa.String(length=128), nullable=False),
     sa.Column('first_name', sa.String(length=120), nullable=False),
     sa.Column('last_name', sa.String(length=120), nullable=False),
-    sa.Column('role', sa.Enum('ADMIN', 'USER', name='userrole'), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('role', sa.Enum('admin', 'user', name='user_role'), server_default=sa.text("'user'"), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id')
@@ -60,7 +60,7 @@ def upgrade() -> None:
     sa.Column('slot_id', sa.Integer(), nullable=False),
     sa.Column('start_ts', sa.DateTime(), nullable=False),
     sa.Column('end_ts', sa.DateTime(), nullable=False),
-    sa.Column('status', sa.Enum('BOOKED', 'ONGOING', 'FINISHED', 'CANCELLED', name='reservationstatus'), nullable=False),
+    sa.Column('status', sa.Enum('booked', 'ongoing', 'finished', 'cancelled', name='reservation_status'), server_default=sa.text("'booked'"), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['slot_id'], ['parking_slots.id'], ),
