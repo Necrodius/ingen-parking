@@ -1,6 +1,6 @@
 # This file contains the AnalyticsService class which provides methods for generating various analytics reports related to parking reservations, slot availability, and active users.
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Dict
 from sqlalchemy import func, cast, Date
 from extensions import db
@@ -110,8 +110,8 @@ class AnalyticsService:
                 }
                 for r in u.reservations
                 if r.status in (ReservationStatus.booked, ReservationStatus.ongoing)
-                and r.start_ts <= date.today()
-                and r.end_ts >= date.today()
+                and r.start_ts <= datetime.now()
+                and r.end_ts >= datetime.now()
             ]
             result.append(
                 {
