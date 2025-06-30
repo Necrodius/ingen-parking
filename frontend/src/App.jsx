@@ -34,7 +34,7 @@ export default function App() {
         </Route>
 
         {/* 404 fallback (optional) */}
-        <Route path="*" element={<p className="p-6">Page not found</p>} />
+        <Route path="*" element={<p className="p-6">404 Page not found</p>} />
       </Routes>
     </BrowserRouter>
   );

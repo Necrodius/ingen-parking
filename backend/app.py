@@ -24,9 +24,9 @@ def create_app() -> Flask:
     # Register API route blueprints
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(user_bp, url_prefix="/api/users")
-    app.register_blueprint(parking_location_bp, url_prefix="/api/parking")
-    app.register_blueprint(parking_slot_bp, url_prefix="/api/parking")
-    app.register_blueprint(reservation_bp, url_prefix="/api/parking/slots")
+    app.register_blueprint(parking_location_bp, url_prefix="/api/parking_location")
+    app.register_blueprint(parking_slot_bp, url_prefix="/api/parking_slot")
+    app.register_blueprint(reservation_bp, url_prefix="/api/reservation")
     app.register_blueprint(reports_bp, url_prefix="/api/reports")
 
     # Health check endpoint for monitoring

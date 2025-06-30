@@ -15,7 +15,7 @@ reservation_bp = Blueprint("reservation_bp", __name__)
 def create_reservation():
     try:
         data = reservation_schema.load(request.get_json())
-        data["user_id"] = get_jwt_identity()
+        data["user_id"] = int(get_jwt_identity())
         reservation = ReservationService.create(**data)
         return jsonify({"reservation": reservation_schema.dump(reservation)}), 201
     except ValidationError as err:
@@ -30,7 +30,7 @@ def create_reservation():
 @jwt_required()
 def list_reservations():
     claims = get_jwt()
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
 
     if claims.get("role") == UserRole.admin.value:
         reservations = ReservationService.list_all()
@@ -45,7 +45,7 @@ def get_reservation(reservation_id):
     try:
         reservation = ReservationService.get(reservation_id)
         claims = get_jwt()
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
 
         if claims.get("role") != UserRole.admin.value and reservation.user_id != user_id:
             return jsonify({"error": "Unauthorized"}), 403
@@ -60,7 +60,7 @@ def get_reservation(reservation_id):
 def update_reservation(reservation_id):
     try:
         reservation = ReservationService.get(reservation_id)
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         claims = get_jwt()
 
         if claims.get("role") != UserRole.admin.value and reservation.user_id != user_id:
@@ -80,7 +80,7 @@ def update_reservation(reservation_id):
 def delete_reservation(reservation_id):
     try:
         reservation = ReservationService.get(reservation_id)
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         claims = get_jwt()
 
         if claims.get("role") != UserRole.admin.value and reservation.user_id != user_id:
@@ -97,7 +97,7 @@ def delete_reservation(reservation_id):
 def cancel_reservation(reservation_id):
     try:
         reservation = ReservationService.get(reservation_id)
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         claims = get_jwt()
 
         if claims.get("role") != UserRole.admin.value and reservation.user_id != user_id:

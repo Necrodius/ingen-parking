@@ -1,25 +1,45 @@
+// frontend/src/utils/api.js
 import { useAuth } from '../context/AuthContext';
 
-/* Factory returns a tiny wrapper around fetch */
-export function apiFactory(token) {
-  const base = '/api';           // served via Vite proxy
+/* ------------------------------------------------------------------ */
+/*  Common fetch wrapper                                               */
+/* ------------------------------------------------------------------ */
+function handleResponse(res) {
+  if (!res.ok) {
+    // Try to read JSON; otherwise fall back to plain text
+    return res
+      .clone()
+      .json()
+      .catch(() => res.text())
+      .then(msg => {
+        const message = typeof msg === 'string' ? msg : msg.error || 'Request failed';
+        throw new Error(message);
+      });
+  }
+  return res.json();               // ✅ all good – already parsed
+}
 
-  const defaultHeaders = {
+/* ------------------------------------------------------------------ */
+/*  Hook that returns a tiny ‘api’ client                              */
+/* ------------------------------------------------------------------ */
+export const useApi = () => {
+  const { token } = useAuth();
+
+  const base = '/api';             // goes through Vite proxy
+  const headers = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}), // ← attaches JWT
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
   return {
-    get:  (url)       => fetch(base + url, { headers: defaultHeaders }),
-    post: (url, body) => fetch(base + url, { method: 'POST', headers: defaultHeaders, body: JSON.stringify(body) }),
-    put:  (url, body) => fetch(base + url, { method: 'PUT',  headers: defaultHeaders, body: JSON.stringify(body) }),
-    del:  (url)       => fetch(base + url, { method: 'DELETE', headers: defaultHeaders }),
+    get : url            => fetch(base + url, { headers }).then(handleResponse),
+    post: (url, body)    =>
+      fetch(base + url, { method: 'POST', headers, body: JSON.stringify(body) })
+        .then(handleResponse),
+    put : (url, body)    =>
+      fetch(base + url, { method: 'PUT',  headers, body: JSON.stringify(body) })
+        .then(handleResponse),
+    del : url            =>
+      fetch(base + url, { method: 'DELETE', headers }).then(handleResponse),
   };
-}
-
-/* React hook so components always get a helper with the
-   *current* token from context                           */
-export const useApi = () => {
-  const { token } = useAuth();
-  return apiFactory(token);
 };

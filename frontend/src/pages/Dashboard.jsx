@@ -1,45 +1,35 @@
+// frontend/src/pages/Dashboard.jsx
 import { useEffect, useState } from 'react';
 import { useApi } from '../utils/api';
 
 export default function Dashboard() {
   const api = useApi();
 
-  const [adminData, setAdminData]       = useState(null);   // null = unknown yet
-  const [loading,    setLoading]        = useState(true);
-  const [error,      setError]          = useState('');
+  const [adminData, setAdminData] = useState(null);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState('');
 
   useEffect(() => {
     (async () => {
-      setLoading(true);
-      setError('');
-
       try {
-        /* -------- 1. who am I? -------- */
-        const meRes = await api.get('/users/me');
-        if (!meRes.ok) throw new Error('auth‑check failed (token?)');
-        const { user } = await meRes.json();
+        /* 1️⃣ Who am I? */
+        const { user } = await api.get('/users/me');
 
-        /* regular users do not need extra calls */
+        /* 2️⃣ Regular users just stop here */
         if (user.role !== 'admin') {
           setAdminData({ role: 'user' });
           return;
         }
 
-        /* -------- 2. admin analytics -------- */
-        const [r1, r2, r3] = await Promise.all([
-          api.get('/reports/reservations-per-day').then(r => r.json()),
-          api.get('/reports/slot-summary').then(r => r.json()),
-          api.get('/reports/active-users').then(r => r.json()),
+        /* 3️⃣ Admin analytics – helper already returns parsed JSON */
+        const [reservations, slots, activeUsers] = await Promise.all([
+          api.get('/reports/reservations-per-day').then(r => r.data),
+          api.get('/reports/slot-summary').then(r => r.data),
+          api.get('/reports/active-users').then(r => r.data),
         ]);
 
-        setAdminData({
-          role: 'admin',
-          reservations: r1.data,
-          slots:        r2.data,
-          activeUsers:  r3.data,
-        });
+        setAdminData({ role: 'admin', reservations, slots, activeUsers });
       } catch (err) {
-        console.error(err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -47,20 +37,19 @@ export default function Dashboard() {
     })();
   }, [api]);
 
-  if (loading)      return <p className="p-4">Loading…</p>;
-  if (error)        return <p className="p-4 text-red-600">{error}</p>;
-  if (!adminData)   return null;                     // should not happen
+  /* ---------------- render ---------------- */
+  if (loading) return <p className="p-4">Loading…</p>;
+  if (error)   return <p className="p-4 text-red-600">{error}</p>;
 
-  /* ---------------- UI ---------------- */
   if (adminData.role !== 'admin') {
-    return <p className="p-4">Hi there – no admin data for regular users.</p>;
+    return <p className="p-4">Hi there – no admin analytics for regular users.</p>;
   }
 
   return (
     <div className="p-6 space-y-10">
       <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
 
-      {/* reservations graph */}
+      {/* Reservations */}
       <section>
         <h2 className="text-xl font-bold mb-2">Reservations (Last 7 Days)</h2>
         <ul className="bg-white shadow p-4">
@@ -70,7 +59,7 @@ export default function Dashboard() {
         </ul>
       </section>
 
-      {/* slot summary */}
+      {/* Slot summary */}
       <section>
         <h2 className="text-xl font-bold mb-2">Slot Availability</h2>
         <ul className="bg-white shadow p-4">
@@ -82,13 +71,13 @@ export default function Dashboard() {
         </ul>
       </section>
 
-      {/* active users */}
+      {/* Active users */}
       <section>
         <h2 className="text-xl font-bold mb-2">Active Users</h2>
         <ul className="bg-white shadow p-4 space-y-2">
           {adminData.activeUsers.map(u => (
             <li key={u.user_id}>
-              <strong>{u.first_name} {u.last_name}</strong> — {u.email}
+              <strong>{u.first_name} {u.last_name}</strong> — {u.email}
             </li>
           ))}
         </ul>

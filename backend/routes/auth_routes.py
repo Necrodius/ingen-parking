@@ -53,7 +53,7 @@ def login_user():
 
         # Create JWT with identity and role
         jwt_token = create_access_token(
-            identity=user.id,
+            identity=str(user.id),
             additional_claims={"role": user.role.value},
         )
 

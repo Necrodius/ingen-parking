@@ -6,6 +6,7 @@ from flask_jwt_extended import (
 )
 from marshmallow import ValidationError
 
+from models.user import UserRole
 from services.user_service import UserService
 from schemas.user_schema import user_schema, users_schema
 from utils.security import role_required
@@ -29,7 +30,7 @@ def _is_self(user_id: int) -> bool:
 # ---------------------------------------------------
 @user_bp.post("/")
 @jwt_required()
-@role_required("admin")
+@role_required(UserRole.admin)
 def create_user():
     try:
         data = user_schema.load(request.get_json())
@@ -46,7 +47,7 @@ def create_user():
 # ---------------------------------------------------
 @user_bp.get("/")
 @jwt_required()
-@role_required("admin")
+@role_required(UserRole.admin)
 def list_users():
     users = UserService.list_users()
     return jsonify({"users": users_schema.dump(users)}), 200
@@ -54,9 +55,12 @@ def list_users():
 @user_bp.get("/me")
 @jwt_required()
 def get_me():
-    """Return the authenticated user's own record."""
+    """Return the authenticated user’s own record, or 404 if somehow missing."""
     me_id = int(get_jwt_identity())
     user  = UserService.get_user(me_id)
+    if not user:                                 # ✅ null‑check prevents 422
+        return jsonify({"error": "User not found"}), 404
+
     return jsonify({"user": user_schema.dump(user)}), 200
 
 @user_bp.get("/<int:user_id>")
@@ -98,7 +102,7 @@ def update_user(user_id: int):
 # ---------------------------------------------------
 @user_bp.delete("/<int:user_id>")
 @jwt_required()
-@role_required("admin")
+@role_required(UserRole.admin)
 def delete_user(user_id: int):
     user = UserService.get_user(user_id)
     if not user:
@@ -109,7 +113,7 @@ def delete_user(user_id: int):
 
 @user_bp.post("/<int:user_id>/deactivate")
 @jwt_required()
-@role_required("admin")
+@role_required(UserRole.admin)
 def deactivate_user(user_id: int):
     user = UserService.get_user(user_id)
     if not user:

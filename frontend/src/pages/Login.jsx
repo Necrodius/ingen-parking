@@ -7,7 +7,7 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form,  setForm]  = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
   const handleChange = (e) =>
@@ -19,9 +19,9 @@ export default function Login() {
 
     try {
       const res = await fetch('/api/auth/login', {
-        method: 'POST',
+        method : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body   : JSON.stringify(form),
       });
 
       if (!res.ok) {
@@ -29,12 +29,13 @@ export default function Login() {
         throw new Error(error || 'Login failed');
       }
 
+      /* ✅ parse the body once (remove duplicate) */
       const { access_token } = await res.json();
-      // Decode token if you want user info, or hit `/api/users/me`
-      login({ token: access_token });          // store in context
-      localStorage.setItem('token', access_token); // persist across reloads
 
-      navigate('/');                           // go to homepage/dashboard
+      login(access_token);                  // put token in context
+      localStorage.setItem('token', access_token);
+
+      navigate('/dashboard');               // send user straight to dash
     } catch (err) {
       setError(err.message);
     }

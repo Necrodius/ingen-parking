@@ -1,6 +1,7 @@
 # routes/admin_reports_routes.py
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
+from models.user import UserRole
 from services.analytics_service import AnalyticsService
 from utils.security import role_required
 
@@ -12,7 +13,7 @@ reports_bp = Blueprint("reports_bp", __name__)
 # --------------------------------------------------------------------- #
 @reports_bp.get("/reservations-per-day")
 @jwt_required()
-@role_required("admin")
+@role_required(UserRole.admin)
 def reservations_per_day():
     try:
         days = int(request.args.get("days", 7))
@@ -30,7 +31,7 @@ def reservations_per_day():
 # --------------------------------------------------------------------- #
 @reports_bp.get("/slot-summary")
 @jwt_required()
-@role_required("admin")
+@role_required(UserRole.admin)
 def slot_summary():
     data = AnalyticsService.slots_available_per_location()
     return jsonify({"data": data}), 200
@@ -41,7 +42,7 @@ def slot_summary():
 # --------------------------------------------------------------------- #
 @reports_bp.get("/active-users")
 @jwt_required()
-@role_required("admin")
+@role_required(UserRole.admin)
 def active_users():
     data = AnalyticsService.users_with_active_reservations()
     return jsonify({"data": data}), 200
