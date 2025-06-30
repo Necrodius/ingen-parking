@@ -22,7 +22,7 @@ class ParkingLocationSchema(SQLAlchemyAutoSchema):
     name = fields.Str(required=True)
     address = fields.Str(required=True)
 
-    # Optional: automatically added in read responses
+    # Automatically added in read responses
     available_slots = fields.Int(dump_only=True)
 
 parking_location_schema = ParkingLocationSchema()

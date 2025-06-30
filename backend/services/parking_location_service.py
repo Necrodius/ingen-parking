@@ -1,3 +1,7 @@
+# This file defines the ParkingLocationService class, which provides methods for managing parking locations in a parking system.
+# It includes methods for creating, reading, updating, and deleting parking locations, 
+# as well as counting available parking slots within a location.
+
 from __future__ import annotations
 from typing import List, Optional
 from sqlalchemy.exc import IntegrityError, NoResultFound

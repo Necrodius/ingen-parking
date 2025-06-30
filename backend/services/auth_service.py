@@ -1,3 +1,6 @@
+# This file defines the AuthService class, which provides methods for user registration and authentication.
+# It includes methods for registering a new user, checking for duplicate emails, and authenticating users.
+
 from typing import Optional
 from sqlalchemy.exc import IntegrityError
 from extensions import db
@@ -15,7 +18,7 @@ class AuthService:
         last_name: str,
         role: UserRole = UserRole.user
     ) -> User:
-        # Normalize email
+
         email_norm = normalize_email(email)
 
         # Prevent duplicate email
@@ -42,13 +45,11 @@ class AuthService:
 
     @staticmethod
     def authenticate(*, email: str, password: str) -> Optional[User]:
-        # Normalize email
         email_norm = normalize_email(email)
 
         # Reuse UserService to retrieve by email
         user = UserService.get_by_email(email_norm)
 
-        # Verify password using utility
         if user and verify_password(password, user.password_hash):
             return user
         return None

@@ -13,7 +13,7 @@ from utils.security import role_required
 parking_location_bp = Blueprint("parking_location_bp", __name__)
 
 # ---------- CREATE ----------
-@parking_location_bp.post("/locations/")
+@parking_location_bp.post("/locations")
 @jwt_required()
 @role_required(UserRole.admin)
 def create_location():
@@ -28,7 +28,7 @@ def create_location():
         return jsonify({"error": str(dup)}), 409
 
 # ---------- READ ----------
-@parking_location_bp.get("/locations/")
+@parking_location_bp.get("/locations")
 def list_locations():
     locations = ParkingLocationService.list_locations()
     enriched = [

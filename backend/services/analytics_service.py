@@ -27,7 +27,7 @@ class AnalyticsService:
             .all()
         )
 
-        # ensure all days appear even if count = 0
+        # Ensure all days appear
         counts = {r.day: r.count for r in rows}
         return [
             {"day": (start + timedelta(d)).isoformat(), "count": counts.get(start + timedelta(d), 0)}

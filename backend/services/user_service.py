@@ -4,7 +4,6 @@ from extensions import db
 from models.user import User
 from utils.security import hash_password, verify_password
 
-
 class UserService:
     # ---------- CREATE ----------
     @staticmethod
@@ -47,7 +46,7 @@ class UserService:
             if UserService.get_by_email(patch["email"]):
                 raise ValueError("email already registered")
 
-        # If password is included in patch, hash it
+        # Hash password if included in patch
         if "password" in patch:
             patch["password_hash"] = hash_password(patch.pop("password"))
 
@@ -71,6 +70,8 @@ class UserService:
         return user
 
     # ---------- CHANGE PASSWORD ----------
+    # This method changes the user's password after verifying the old one
+    # Can be used together with the `update_user` method
     @staticmethod
     def change_password(user: User, old_pw: str, new_pw: str) -> None:
         # Ensure old password matches before changing to new one

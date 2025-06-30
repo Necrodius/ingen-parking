@@ -10,7 +10,7 @@ from models.user import UserRole
 parking_slot_bp = Blueprint("parking_slot_bp", __name__)
 
 # ---------- CREATE ----------
-@parking_slot_bp.post("/slots/")
+@parking_slot_bp.post("/slots")
 @jwt_required()
 @role_required(UserRole.admin)
 def create_slot():
@@ -22,7 +22,7 @@ def create_slot():
         return jsonify({"errors": err.messages}), 400
 
 # ---------- READ ----------
-@parking_slot_bp.get("/slots/")
+@parking_slot_bp.get("/slots")
 def list_slots():
     location_id = request.args.get("location_id", type=int)
 
