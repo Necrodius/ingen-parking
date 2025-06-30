@@ -1,97 +1,86 @@
 # This file seeds the database with sample users, parking locations, parking slots, and reservations.
 
-from datetime import datetime, timedelta, UTC
-
-from app import create_app, db
-from models import User, UserRole, ParkingLocation, ParkingSlot, Reservation, ReservationStatus
-
-def hash_password(raw: str) -> str:
-    # Temporary dummy hash
-    return f"hashed-{raw}"
+from datetime import datetime, timedelta, timezone
+from app import create_app
+from extensions import db
+from services.user_service import UserService
+from services.parking_location_service import ParkingLocationService
+from services.parking_slot_service import ParkingSlotService
+from services.reservation_service import ReservationService
+from models.user import UserRole
+from models.reservation import ReservationStatus
 
 def seed() -> None:
     app = create_app()
     with app.app_context():
-        # ---------- clear & recreate schema ----------
+        # -------- Reset schema --------
         db.drop_all()
         db.create_all()
 
-        # ---------- USERS ----------
-        admin_1 = User(
+        # -------- Users --------
+        admin_1 = UserService.create_user(
             email="admin@sample.com",
-            password_hash=hash_password("adminpw"),
+            password="adminpw",
             first_name="Alice",
             last_name="Admin",
             role=UserRole.admin,
         )
-
-        admin_2 = User(
+        admin_2 = UserService.create_user(
             email="admin2@sample.com",
-            password_hash=hash_password("adminpw2"),
+            password="adminpw2",
             first_name="Carlos",
             last_name="Super",
             role=UserRole.admin,
         )
-
-        user_1 = User(
+        user_1 = UserService.create_user(
             email="davao.driver1@example.com",
-            password_hash=hash_password("driver1"),
+            password="driver1",
             first_name="Daisy",
             last_name="Driver",
             role=UserRole.user,
         )
-
-        user_2 = User(
+        user_2 = UserService.create_user(
             email="davao.driver2@example.com",
-            password_hash=hash_password("driver2"),
+            password="driver2",
             first_name="Ernie",
             last_name="Driver",
             role=UserRole.user,
         )
-
-        user_3 = User(
+        user_3 = UserService.create_user(
             email="davao.driver3@example.com",
-            password_hash=hash_password("driver3"),
+            password="driver3",
             first_name="Felix",
             last_name="Driver",
             role=UserRole.user,
         )
 
-        db.session.add_all([admin_1, admin_2, user_1, user_2, user_3])
-        db.session.flush()
-
-        # ---------- PARKING LOCATIONS ----------
-        roxas_lot = ParkingLocation(
+        # -------- Parking locations --------
+        roxas_lot = ParkingLocationService.create_location(
             name="Roxas Avenue Open Lot",
             address="Roxas Ave, Poblacion District, Davao City",
             lat=7.0735,
             lng=125.6121,
         )
-
-        abreeza_garage = ParkingLocation(
+        abreeza_garage = ParkingLocationService.create_location(
             name="Abreeza Basement Parking",
             address="J.P. Laurel Ave, Bajada, Davao City",
             lat=7.0989,
             lng=125.6128,
         )
 
-        db.session.add_all([roxas_lot, abreeza_garage])
-        db.session.flush()
-
-        # ---------- PARKING SLOTS ----------
-        slots = []
+        # -------- Parking slots --------
+        slot_map = {}
         for label in ("A1", "A2", "A3", "A4"):
-            slots.append(ParkingSlot(slot_label=label, location_id=roxas_lot.id))
+            s = ParkingSlotService.create_slot(slot_label=label, location_id=roxas_lot.id)
+            slot_map[label] = s
         for label in ("B1", "B2", "B3", "B4"):
-            slots.append(ParkingSlot(slot_label=label, location_id=abreeza_garage.id))
+            s = ParkingSlotService.create_slot(slot_label=label, location_id=abreeza_garage.id)
+            slot_map[label] = s
 
-        db.session.add_all(slots)
-        db.session.flush()
-        slot_map = {s.slot_label: s for s in slots}
+        # -------- Reservations --------
+        now = datetime.now(timezone.utc)
 
-        # ---------- RESERVATIONS ----------
-        now = datetime.now(UTC)
-        res_1 = Reservation(
+        ReservationService.create(
             user_id=user_1.id,
             slot_id=slot_map["A1"].id,
             start_ts=now,
@@ -99,7 +88,7 @@ def seed() -> None:
             status=ReservationStatus.booked,
         )
 
-        res_2 = Reservation(
+        ReservationService.create(
             user_id=user_2.id,
             slot_id=slot_map["B2"].id,
             start_ts=now - timedelta(hours=1),
@@ -107,7 +96,7 @@ def seed() -> None:
             status=ReservationStatus.ongoing,
         )
 
-        res_3 = Reservation(
+        ReservationService.create(
             user_id=user_3.id,
             slot_id=slot_map["A3"].id,
             start_ts=now - timedelta(days=1, hours=3),
@@ -115,10 +104,6 @@ def seed() -> None:
             status=ReservationStatus.finished,
         )
 
-        db.session.add_all([res_1, res_2, res_3])
-
-        # ---------- COMMIT ----------
-        db.session.commit()
         print("Database cleared and seeded with sample data.")
 
 if __name__ == "__main__":

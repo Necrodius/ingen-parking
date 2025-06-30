@@ -1,5 +1,5 @@
 # This file defines a class that adds creation and last update timestamps.
-# They automatically set to the current time when a record is created (in DB) or updated (in backend).
+# They automatically set to the current time when a record is created or updated.
 
 from sqlalchemy import Column, DateTime, func
 from extensions import db

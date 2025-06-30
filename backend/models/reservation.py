@@ -21,7 +21,6 @@ class Reservation(db.Model, TimestampMixin):
     start_ts  = Column(DateTime, nullable=False)
     end_ts    = Column(DateTime, nullable=False)
     status    = Column(PgEnum(ReservationStatus, name="reservation_status"), nullable=False, server_default=text("'booked'"))
-
     user      = relationship("User", back_populates="reservations")
     slot      = relationship("ParkingSlot", back_populates="reservations")
 
