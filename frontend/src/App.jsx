@@ -12,6 +12,7 @@ import AdminLocations  from './pages/AdminLocations';
 import AdminUsers      from './pages/AdminUsers';
 
 export default function App() {
+
   return (
     <BrowserRouter>
       <Routes>

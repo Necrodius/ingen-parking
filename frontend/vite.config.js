@@ -14,12 +14,6 @@ export default defineConfig(({ mode }) => {
   return {
     // Make the same directory the default for runtime env loading
     envDir,                       // 🔑 <-- this is the missing line
-    plugins: [react(), tailwindcss()],
-
-    server: {
-      proxy: {
-        '/api': env.VITE_BACKEND_PROXY,
-      },
-    },
+    plugins: [react(), tailwindcss()]
   };
 });

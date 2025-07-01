@@ -18,6 +18,10 @@ services:
       - key: FLASK_ENV
         value: production
 
+      # --- CORS origins (for frontend) ---
+      - key: FRONTEND_URL
+        value: https://ingen-parking-frontend.onrender.com
+
       # --- Database wiring (maps to Render Postgres below) ---
       - key: DATABASE_URL
         fromDatabase:
@@ -48,7 +52,7 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
-      - key: VITE_BACKEND_PROXY
+      - key: VITE_BACKEND_URL
         value: https://ingen-parking-backend.onrender.com/api
 
 databases:

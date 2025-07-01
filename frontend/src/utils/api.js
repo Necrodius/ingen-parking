@@ -8,11 +8,9 @@ import { useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 /* 🔑 1. Pick API base URL
-      • In production Render injects VITE_BACKEND_PROXY.
+      • In production Render injects VITE_BACKEND_URL.
       • Locally we fall back to '/api' so Vite dev‑server proxy works. */
-const BASE =
-  import.meta.env.VITE_BACKEND_PROXY  // e.g. https://ingen-parking-backend.onrender.com/api
-  || '/api';                          // dev fallback
+const BASE = import.meta.env.VITE_BACKEND_URL;
 
 /* ---------------------------------------------------------- */
 /*  Centralised fetch error handler                           */

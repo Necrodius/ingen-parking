@@ -2,13 +2,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useApi } from '../utils/api';        // 👈 adjust path if api.js lives elsewhere
 import toast from 'react-hot-toast';
 
 export default function Login() {
-  const navigate        = useNavigate();
-  const { login }       = useAuth();
-  const [mode, setMode] = useState('login');   // 'login' | 'register'
+  const navigate  = useNavigate();
+  const { login } = useAuth();
+  const api       = useApi();              // 👈 wrapper gives get/post/put/del helpers
 
+  /* ui mode: 'login' or 'register' */
+  const [mode, setMode] = useState('login');
+
+  /* form state */
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -17,49 +22,48 @@ export default function Login() {
     last_name : '',
   });
 
+  /* keep state in sync with inputs */
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  /* ---------- submit ---------- */
+  /* --------------- submit --------------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      /* register (optional) */
+      /* ---------- 1. Register (optional) ---------- */
       if (mode === 'register') {
         if (form.password !== form.confirmPassword)
           throw new Error('Passwords do not match');
 
-        const res = await fetch('/api/auth/register', {
-          method : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body   : JSON.stringify({
-            email      : form.email,
-            password   : form.password,
-            first_name : form.first_name,
-            last_name  : form.last_name,
-          }),
+        await api.post('/auth/register', {
+          email      : form.email,
+          password   : form.password,
+          first_name : form.first_name,
+          last_name  : form.last_name,
         });
-        if (!res.ok) throw new Error((await res.json()).error || 'Registration failed');
+        toast.success('Registration complete! Please sign in.');
+        setMode('login');          // switch UI to login after successful signup
+        return;
       }
 
-      /* login */
-      const loginRes = await fetch('/api/auth/login', {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({ email: form.email, password: form.password }),
+      /* ---------- 2. Login ---------- */
+      const { access_token } = await api.post('/auth/login', {
+        email   : form.email,
+        password: form.password,
       });
-      if (!loginRes.ok) throw new Error((await loginRes.json()).error || 'Login failed');
 
-      const { access_token } = await loginRes.json();
-      login(access_token);
+      /* save JWT, redirect, toast */
+      login(access_token);                       // put token in context
       localStorage.setItem('token', access_token);
       toast.success('Welcome!');
       navigate('/');
+
     } catch (err) {
       toast.error(err.message);
     }
   };
 
+  /* toggle login/register form */
   const swapMode = () => {
     setForm({
       email: '',
@@ -71,7 +75,7 @@ export default function Login() {
     setMode((m) => (m === 'login' ? 'register' : 'login'));
   };
 
-  /* ---------- UI ---------- */
+  /* --------------- UI --------------- */
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-16 bg-gradient-to-br from-blue-700 via-indigo-700 to-purple-700">
       <div className="w-full max-w-md space-y-6 backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl p-8 shadow-2xl">

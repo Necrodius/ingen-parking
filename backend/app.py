@@ -4,7 +4,7 @@
 
 from flask import Flask, jsonify
 from config import Config
-from extensions import db, jwt
+from extensions import db, jwt, cors
 
 # Blueprints
 from routes.auth_routes import auth_bp
@@ -26,6 +26,11 @@ def create_app() -> Flask:
     # ── Extensions ────────────────────────────────────────────────
     db.init_app(app)
     jwt.init_app(app)
+    cors.init_app(
+        app,
+        resources={r"/api/*": {"origins": app.config["FRONTEND_URL"]}},
+        supports_credentials=True
+    )
 
     # ── APScheduler (runs inside this process) ────────────────────
     scheduler = BackgroundScheduler(daemon=True, timezone="UTC")
