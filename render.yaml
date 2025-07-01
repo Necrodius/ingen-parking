@@ -41,14 +41,14 @@ services:
         value: 8000                  # matches Dockerfile’s EXPOSE
 
   # ───────────── FRONTEND – Vite / React static site ─────────────
-  - type: static_site
+  - type: web
     name: ingen-parking-frontend
+    runtime: static
     rootDir: frontend
     plan: free
     buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
-      # Used at build‑time by Vite to hard‑code the production API base
       - key: VITE_BACKEND_PROXY
         value: https://ingen-parking-backend.onrender.com/api
 
