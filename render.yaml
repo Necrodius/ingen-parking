@@ -1,0 +1,63 @@
+# render.yaml – Ingenuity Smart Parking  (monorepo)
+
+services:
+  # ───────────── BACKEND – Flask API (Docker) ─────────────
+  - type: web
+    name: ingen-parking-backend
+    runtime: docker                 # Use backend/Dockerfile
+    rootDir: backend
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /api/health    # adjust if you renamed it
+    envVars:
+      # --- Project secrets (Generated at deploy time, NOT in git) ---
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: FLASK_ENV
+        value: production
+
+      # --- Database wiring (maps to Render Postgres below) ---
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ingen-parking-db
+          property: connectionString
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: ingen-parking-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: ingen-parking-db
+          property: password
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: ingen-parking-db
+          property: database
+
+      # --- Optional: tell Gunicorn which port Render injected ---
+      - key: PORT
+        value: 8000                  # matches Dockerfile’s EXPOSE
+
+  # ───────────── FRONTEND – Vite / React static site ─────────────
+  - type: web
+    name: ingen-parking-frontend
+    runtime: static
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      # Used at build‑time by Vite to hard‑code the production API base
+      - key: VITE_BACKEND_PROXY
+        value: https://ingen-parking-backend.onrender.com/api
+
+databases:
+  # ───────────── POSTGRES ─────────────
+  - name: ingen-parking-db
+    plan: free
+    postgresMajorVersion: '17'       # matches local Docker Compose (17.5)
+    user: postgres                   # same as local
+    databaseName: ingenparking
+    # Omit `password:` so Render generates a strong secret automatically

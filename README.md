@@ -72,7 +72,7 @@ cd ingen-parking
 
 ### 2. Environment configuration
 
-Create the `.env` file with `.env.sample` as a basis
+Create the `.env` file by renaming `.env.sample` to `.env` and changing environment values
 
 ### 3. Start the application
 
@@ -83,7 +83,7 @@ docker compose -f infra/docker-compose.yml up --build -d
 ```
 
 Access the frontend at `http://localhost:5173`  
-Access the API at `http://localhost:5000/api`
+Access the API at `http://localhost:8000/api`
 
 ### 4. Apply database migrations
 
@@ -123,9 +123,9 @@ docker-compose exec backend flask seed
 
 ## 🚀 Deployment Notes
 
-- You can deploy this project on platforms like **Render**, **Heroku**, or **Vercel** with Docker support.
-- Make sure to configure your production `.env` files with the correct database and secret keys.
-- Use a reverse proxy (e.g., NGINX) to serve the React frontend and route API requests.
+- I have deployed this project on **Render** using a `render.yaml` blueprint file.
+-
+- Make sure to configure your production `.env` files when using a different platform.
 
 ---
 
@@ -153,7 +153,7 @@ ingen-parking/
 
 ## 🙋‍♂️ Author
 
-Built for Ingenuity by **Earl**  
+Built for Ingenuity by **Necrodius (Earl)**  
 With a lot of help from ChatGPT and Copilot
 
 ---
