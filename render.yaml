@@ -41,9 +41,8 @@ services:
         value: 8000                  # matches Dockerfile’s EXPOSE
 
   # ───────────── FRONTEND – Vite / React static site ─────────────
-  - type: static-site
+  - type: static_site
     name: ingen-parking-frontend
-    runtime: static
     rootDir: frontend
     plan: free
     buildCommand: npm install && npm run build
