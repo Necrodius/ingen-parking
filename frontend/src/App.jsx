@@ -7,7 +7,9 @@ import Protected       from './components/ProtectedRoute';
 import Locations       from './pages/Locations';
 import Slots           from './pages/Slots';
 import MyReservations  from './pages/MyReservations';
-import Profile         from './pages/Profile'; // 🆕 Add this
+import Profile         from './pages/Profile';
+import AdminLocations  from './pages/AdminLocations';
+import AdminUsers      from './pages/AdminUsers';
 
 export default function App() {
   return (
@@ -16,8 +18,9 @@ export default function App() {
         {/* ---------- Public Routes ---------- */}
         <Route path="/login" element={<Login />} />
 
-        {/* ---------- Protected Routes (with shared layout) ---------- */}
+        {/* ---------- Protected Routes (shared <Layout>) ---------- */}
         <Route element={<Layout />}>
+          {/* Home */}
           <Route
             path="/"
             element={
@@ -27,16 +30,37 @@ export default function App() {
             }
           />
 
+          {/* Admin dashboard */}
           <Route
             path="/dashboard"
             element={
-              <Protected>
+              <Protected roles={['admin']}>
                 <Dashboard />
               </Protected>
             }
           />
 
-          {/* ---------- User Booking Flow ---------- */}
+          {/* Admin: manage locations */}
+          <Route
+            path="/admin/locations"
+            element={
+              <Protected roles={['admin']}>
+                <AdminLocations />
+              </Protected>
+            }
+          />
+
+          {/* Admin: manage users */}
+          <Route
+            path="/admin/users"
+            element={
+              <Protected roles={['admin']}>
+                <AdminUsers />
+              </Protected>
+            }
+          />
+
+          {/* ---------- User booking flow ---------- */}
           <Route
             path="/locations"
             element={
@@ -62,7 +86,7 @@ export default function App() {
             }
           />
 
-          {/* ---------- User Profile ---------- */}
+          {/* ---------- User profile ---------- */}
           <Route
             path="/profile"
             element={
@@ -74,7 +98,7 @@ export default function App() {
         </Route>
 
         {/* ---------- Fallback (404) ---------- */}
-        <Route path="*" element={<p className="p-6">404 Page not found</p>} />
+        <Route path="*" element={<p className="p-6">404 Page not found</p>} />
       </Routes>
     </BrowserRouter>
   );

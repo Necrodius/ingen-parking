@@ -1,307 +1,357 @@
-import { useEffect, useState } from 'react';
+// src/pages/Dashboard.jsx
+/*  🖥️  Admin Dashboard – v10
+    Layout sketch
+      x = Reservation chart
+      y = Slot‑availability per location
+      z = Active‑reservations list
+
+      ┌───────────────┬───────────────┐
+      │      x        │      y        │   (≥ 1280 px → 2‑col)
+      └───────────────┴───────────────┘
+      ┌───────────────────────────────┐
+      │              z                │
+      └───────────────────────────────┘
+
+    • Chart + Slot report share a grid row (xl:grid‑cols‑2)
+    • List always takes full width, stacks below
+    • KPI cards intact
+*/
+
+import { useEffect, useState, useMemo } from 'react';
 import { useApi } from '../utils/api';
 import toast from 'react-hot-toast';
+import { useNotifications } from '../context/NotificationContext';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { localInputToIso, isoToLocalInput } from '../utils/datetime';
 
 export default function Dashboard() {
   const api = useApi();
+  const { notify } = useNotifications();
 
-  /* ---------- state hooks ---------- */
+  /* ───────── State ───────── */
   const [adminData, setAdminData] = useState(null);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState('');
   const [range,     setRange]     = useState(7);
   const [edit,      setEdit]      = useState(null);
-  const [page,      setPage]      = useState(0);
 
-  /* ---------- derived data (safe defaults) ---------- */
-  const nowIso = new Date().toISOString();
-  const reservations = adminData?.reservations ?? [];
+  /* slot‑availability filter (defaults: now → +24 h) */
+  const [from, setFrom] = useState(() => isoToLocalInput(new Date().toISOString()));
+  const [to,   setTo]   = useState(() => isoToLocalInput(new Date(Date.now() + 86_400_000).toISOString()));
 
-  const activeAll = reservations
-    .filter(r => {
-      const st = r.status.split('.').pop();
-      return ['booked', 'ongoing'].includes(st) && r.end_ts > nowIso;
-    })
-    .sort((a, b) => new Date(a.start_ts) - new Date(b.start_ts));
+  /* ───────── Helpers (refresh, flash, etc.) ───────── */
+  const refreshList = () =>
+    api.get('/reservation/reservations')
+       .then(({ reservations }) => setAdminData(p => (p ? { ...p, reservations } : p)))
+       .catch(e => toast.error(e.message));
 
-  const pageSize   = 5;
-  const pageCount  = Math.ceil(activeAll.length / pageSize);
-  const active     = activeAll.slice(page * pageSize, page * pageSize + pageSize);
+  const flash = (promise, msg) =>
+    promise.then(() => { notify(msg); refreshList(); })
+           .catch(e => toast.error(e.message));
 
-  /* ---------- effects ---------- */
+  const cancel = id => flash(api.post(`/reservation/reservations/${id}/cancel`),  'Cancelled');
+  const finish = id => flash(api.post(`/reservation/reservations/${id}/finish`),   'Finished');
+  const remove = id => flash(api.del(`/reservation/reservations/${id}`),           'Deleted');
+
+  const saveEdit = () => {
+    const { id, slot_id, start_ts, end_ts } = edit;
+    flash(api.put(`/reservation/reservations/${id}`, {
+      slot_id,
+      start_ts: localInputToIso(start_ts),
+      end_ts:   localInputToIso(end_ts),
+    }), 'Updated').then(() => setEdit(null));
+  };
+
+  /* ───────── Load data on mount / range change ───────── */
   useEffect(() => {
-    const loadDashboard = async (days) => {
+    (async () => {
       setLoading(true);
       try {
         const { user } = await api.get('/users/me');
         if (user.role !== 'admin') { setAdminData({ role: 'user' }); return; }
 
         const [
-          chart, slotSummary, reservations,
-          slots, locations, users,
+          chart, reservations, slots, locations, users,
         ] = await Promise.all([
-          api.get(`/reports/reservations-per-day?days=${days}`).then(r => r.data),
-          api.get('/reports/slot-summary').then(r => r.data),
+          api.get(`/reports/reservations-per-day?days=${range}`).then(r => r.data),
           api.get('/reservation/reservations').then(r => r.reservations),
-          api.get('/parking_slot/slots').then(r => r.slots),
+          api.get('/parking_slot/slots').then(r         => r.slots),
           api.get('/parking_location/locations').then(r => r.locations),
-          api.get('/users/').then(r => r.users),
+          api.get('/users/').then(r                       => r.users),
         ]);
 
-        const slotMap     = Object.fromEntries(slots.map(s => [s.id, s]));
+        const slotMap     = Object.fromEntries(slots.map(s     => [s.id, s]));
         const locationMap = Object.fromEntries(locations.map(l => [l.id, l]));
-        const userMap     = Object.fromEntries(users.map(u => [u.id, `${u.first_name} ${u.last_name}`]));
+        const userMap     = Object.fromEntries(users.map(u     => [u.id, `${u.first_name} ${u.last_name}`]));
 
-        setAdminData({
-          role: 'admin',
-          chart,
-          slotSummary,
-          reservations,
-          slotMap,
-          locationMap,
-          userMap,
-        });
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDashboard(range);
+        setAdminData({ role: 'admin', chart, reservations, slotMap, locationMap, userMap });
+      } catch (e) { setError(e.message); } finally { setLoading(false); }
+    })();
   }, [range, api]);
 
-  /* reset page when list size changes */
-  useEffect(() => { setPage(0); }, [activeAll.length]);
+  /* ───────── Derived data ───────── */
+  const nowIso = new Date().toISOString();
+  const reservations = adminData?.reservations ?? [];
+  const active = reservations
+    .filter(r => ['booked','ongoing'].includes(r.status.split('.').pop()) && r.end_ts > nowIso)
+    .sort((a, b) => new Date(a.start_ts) - new Date(b.start_ts));
 
-  /* ---------- helpers ---------- */
-  const refreshList = () =>
-    api.get('/reservation/reservations')
-       .then(r => setAdminData(prev => prev ? { ...prev, reservations: r.reservations } : prev))
-       .catch(e => toast.error(e.message));
+  const totalSlots = adminData ? Object.keys(adminData.slotMap).length : 0;
+  const blockedSlotsCount = reservations.reduce((acc, r) => {
+    if (['cancelled','completed'].includes(r.status.split('.').pop())) return acc;
+    const slot = adminData.slotMap[r.slot_id];
+    return slot ? acc.add(slot.id) : acc;
+  }, new Set()).size;
 
-  const flash = (p, msg) => p.then(() => { toast.success(msg); refreshList(); })
-                             .catch(e  => toast.error(e.message));
+  const availability = useMemo(() => {
+    if (!adminData) return [];
+    const { slotMap, locationMap } = adminData;
+    const startIso = localInputToIso(from);
+    const endIso   = localInputToIso(to);
+    const totalByLoc = {}, blockedSlots = {};
+    Object.values(slotMap).forEach(s => { totalByLoc[s.location_id] = (totalByLoc[s.location_id]||0)+1; });
+    reservations.forEach(r => {
+      if (r.status.endsWith('cancelled')) return;
+      if (r.end_ts <= startIso || r.start_ts >= endIso) return;
+      const slot = slotMap[r.slot_id]; if (!slot) return;
+      (blockedSlots[slot.location_id] ||= new Set()).add(slot.id);
+    });
+    return Object.entries(locationMap).map(([id, loc]) => {
+      const total   = totalByLoc[id]   || 0;
+      const blocked = blockedSlots[id] ? blockedSlots[id].size : 0;
+      return { id, name: loc.name, bookable: total-blocked, blocked, total };
+    }).sort((a,b)=>a.name.localeCompare(b.name));
+  }, [adminData, from, to, reservations]);
 
-  const cancel =  id => flash(api.post(`/reservation/reservations/${id}/cancel`), 'Cancelled');
-  const finish =  id => flash(api.post(`/reservation/reservations/${id}/finish`), 'Finished');
-  const remove =  id => flash(api.del (`/reservation/reservations/${id}`)      , 'Deleted');
+  /* ───────── Guards ───────── */
+  if (loading) return <p className="p-4 text-white">Loading…</p>;
+  if (error)   return <p className="p-4 text-red-300">{error}</p>;
+  if (adminData?.role !== 'admin') return <p className="p-4 text-white">Hi there – no admin analytics for regular users.</p>;
 
-  const saveEdit = () => {
-    const { id, slot_id, start_ts, end_ts } = edit;
-    flash(api.put(`/reservation/reservations/${id}`, { slot_id, start_ts, end_ts }), 'Updated')
-      .then(() => setEdit(null));
-  };
-
-  const statusChip = (st) => {
+  /* misc helpers */
+  const statusChip = st => {
     const cls = {
-      booked   : 'bg-yellow-100 text-yellow-800',
-      ongoing  : 'bg-green-100  text-green-800',
-      completed: 'bg-gray-100  text-gray-800',
-      cancelled: 'bg-red-100   text-red-800',
-    }[st] || 'bg-gray-100 text-gray-800';
-    return <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{st}</span>;
+      booked:'bg-yellow-400 text-yellow-900',
+      ongoing:'bg-green-400 text-green-900',
+      completed:'bg-gray-400 text-gray-900',
+      cancelled:'bg-red-400 text-red-900',
+    }[st]||'bg-gray-400 text-gray-900';
+    return <span className={`px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>{st}</span>;
   };
 
-  /* ---------- guards ---------- */
-  if (loading) return <p className="p-4">Loading…</p>;
-  if (error)   return <p className="p-4 text-red-600">{error}</p>;
-  if (adminData?.role !== 'admin')
-    return <p className="p-4">Hi there – no admin analytics for regular users.</p>;
+  const noBar = { scrollbarWidth:'none', msOverflowStyle:'none' };
 
-  /* ---------- render ---------- */
+  /* ───────── UI ───────── */
   return (
-    <div className="p-6 space-y-10">
-      <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
+    <main className="relative min-h-[calc(100vh-6rem)] flex flex-col gap-8
+                     bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700
+                     text-white overflow-hidden p-6">
 
-      {/* ——— reservations chart ——— */}
-      <section>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-bold">Reservations (Last {range} Days)</h2>
-          <select value={range}
-                  onChange={e => setRange(+e.target.value)}
-                  className="border rounded px-2 py-1 text-sm">
-            {[7, 14, 30, 90].map(d => (
-              <option key={d} value={d}>Last {d} days</option>
-            ))}
-          </select>
-        </div>
-        <div className="bg-white shadow p-4 rounded-lg">
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={adminData.chart}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="day"
-                     tickFormatter={d =>
-                       new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}/>
-              <YAxis allowDecimals={false}/>
-              <Tooltip labelFormatter={d => new Date(d).toLocaleDateString()}/>
-              <Line type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }}/>
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+      {/* grain overlay */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay
+                      bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZmZmIi8+PC9zdmc+')]" />
 
-      {/* ——— slot summary ——— */}
-      <section>
-        <h2 className="text-xl font-bold mb-2">Slot Availability</h2>
-        <ul className="bg-white shadow p-4 rounded-lg">
-          {adminData.slotSummary.map(l => (
-            <li key={l.location_id}>
-              {l.location_name}: {l.available}/{l.total}
-            </li>
+      <h1 className="relative z-10 text-4xl font-extrabold drop-shadow-lg">Admin Dashboard</h1>
+
+      <section className="relative z-10 space-y-10">
+
+        {/* ───── KPI cards ───── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label:'Total Slots',         value: totalSlots },
+            { label:'Blocked Slots',       value: blockedSlotsCount },
+            { label:'Active Reservations', value: active.length },
+            { label:`Last ${range} Days`,  value: adminData.chart.reduce((s,c)=>s+c.count,0) },
+          ].map(({label,value})=>(
+            <div key={label} className="backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-4 shadow-2xl text-center">
+              <p className="text-2xl font-bold">{value}</p>
+              <p className="text-sm text-white/70">{label}</p>
+            </div>
           ))}
-        </ul>
-      </section>
-
-      {/* ——— active reservations ——— */}
-      <section>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-bold">Active Reservations</h2>
-          <button onClick={refreshList}
-                  className="p-2 border rounded hover:bg-gray-100"
-                  title="Refresh list">
-            🔄
-          </button>
         </div>
 
-        <div className="overflow-x-auto bg-white shadow rounded-lg">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-3 py-2 text-left">Slot</th>
-                <th className="px-3 py-2 text-left">User</th>
-                <th className="px-3 py-2">Start</th>
-                <th className="px-3 py-2">End</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {active.map(r => {
-                const st      = r.status.split('.').pop();
-                const slot    = adminData.slotMap[r.slot_id] || {};
-                const loc     = adminData.locationMap[slot.location_id] || {};
-                const slotLbl = `${loc.name || '—'} • ${slot.slot_label || r.slot_id}`;
-                const userLbl = adminData.userMap[r.user_id] || r.user_id;
+        {/* ───── Row (chart | slot availability) ───── */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
 
-                return (
-                  <tr key={r.id} className="border-t">
-                    <td className="px-3 py-2">{slotLbl}</td>
-                    <td className="px-3 py-2">{userLbl}</td>
-                    <td className="px-3 py-2">{new Date(r.start_ts).toLocaleString()}</td>
-                    <td className="px-3 py-2">{new Date(r.end_ts).toLocaleString()}</td>
-                    <td className="px-3 py-2">{statusChip(st)}</td>
-                    <td className="px-3 py-2 flex gap-2">
-                      {st === 'booked' && (
-                        <button onClick={() => cancel(r.id)}
-                                className="p-1.5 rounded bg-yellow-500 hover:bg-yellow-600"
-                                title="Cancel">
-                          ❌
-                        </button>
-                      )}
-                      {st === 'ongoing' && (
-                        <button onClick={() => finish(r.id)}
-                                className="p-1.5 rounded bg-green-600 hover:bg-green-700"
-                                title="Finish">
-                          ✔️
-                        </button>
-                      )}
-                      <button onClick={() => setEdit({ ...r })}
-                              className="p-1.5 rounded bg-blue-600 hover:bg-blue-700"
-                              title="Edit">
-                        ✏️
-                      </button>
-                      <button onClick={() => remove(r.id)}
-                              className="p-1.5 rounded bg-red-600 hover:bg-red-700"
-                              title="Delete">
-                        🗑️
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {active.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="text-center py-4 text-gray-500">
-                    No active reservations.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* pagination */}
-        {pageCount > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-2">
-            <button
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="p-1 border rounded disabled:opacity-30"
-              title="Previous page"
-            >
-              ◀
-            </button>
-            <span className="text-sm">
-              Page {page + 1} / {pageCount}
-            </span>
-            <button
-              onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
-              disabled={page === pageCount - 1}
-              className="p-1 border rounded disabled:opacity-30"
-              title="Next page"
-            >
-              ▶
-            </button>
+          {/* Reservations chart */}
+          <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6">
+            <div className="flex flex-wrap sm:flex-nowrap sm:items-end sm:justify-between gap-4 mb-4">
+              <h2 className="text-xl font-bold flex-1">Reservations (Last {range} Days)</h2>
+              <select value={range} onChange={e=>setRange(+e.target.value)}
+                      className="bg-white text-gray-800 border px-2 py-1 rounded">
+                {[7,14,30,90].map(d=> <option key={d}>{d}</option>)}
+              </select>
+            </div>
+            <ResponsiveContainer width="100%" aspect={1.6}>
+              <LineChart data={adminData.chart}>
+                <CartesianGrid strokeDasharray="3 3"/>
+                <XAxis dataKey="day" tick={{fill:'white'}} />
+                <YAxis allowDecimals={false} tick={{fill:'white'}} />
+                <Tooltip contentStyle={{backgroundColor:'rgba(0,0,0,0.8)',color:'white'}}
+                         labelFormatter={d=>new Date(d).toLocaleString('en-PH',{timeZone:'Asia/Manila'})}/>
+                <Line type="monotone" dataKey="count" stroke="#facc15" strokeWidth={2} dot={{r:3}}/>
+              </LineChart>
+            </ResponsiveContainer>
           </div>
-        )}
+
+          {/* Slot availability */}
+          <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6">
+            <div className="flex flex-wrap lg:flex-nowrap gap-4 mb-4">
+              <div className="flex-1">
+                <h2 className="text-xl font-bold">
+                  Slot Availability&nbsp;
+                  <span className="text-sm font-normal text-white/70">(Bookable vs Blocked)</span>
+                </h2>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs w-full sm:w-auto">
+                <label className="flex flex-col">
+                  From
+                  <input type="datetime-local" value={from}
+                         onChange={e=>setFrom(e.target.value)}
+                         className="mt-1 rounded bg-white/10 text-white p-1 border border-white/30"/>
+                </label>
+                <label className="flex flex-col">
+                  To
+                  <input type="datetime-local" value={to}
+                         onChange={e=>setTo(e.target.value)}
+                         className="mt-1 rounded bg-white/10 text-white p-1 border border-white/30"/>
+                </label>
+              </div>
+            </div>
+
+            {availability.length ? (
+              <ul className="space-y-4 max-h-[40vh] overflow-y-auto pr-1" style={noBar}>
+                {availability.map(({id,name,bookable,blocked,total})=>{
+                  const pct=total?bookable/total*100:0;
+                  const color=bookable?'bg-green-500':'bg-red-500';
+                  return(
+                    <li key={id} className="bg-white/10 p-4 rounded-xl shadow-inner backdrop-blur-sm">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-medium">{name}</h3>
+                        <span className="text-sm text-white/70">{bookable}/{total} bookable</span>
+                      </div>
+                      <div className="w-full h-2 bg-white/20 rounded">
+                        <div className={`h-2 rounded ${color}`} style={{width:`${pct}%`}}/>
+                      </div>
+                      {!!blocked && <p className="mt-1 text-xs text-red-300">{blocked} blocked</p>}
+                    </li>
+                  );
+                })}
+              </ul>
+            ):<p className="text-center text-white/70">No slots found.</p>}
+          </div>
+        </div>
+
+        {/* ───── Active reservations list (full width) ───── */}
+        <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-xl font-bold">Active Reservations</h2>
+            <button onClick={refreshList}
+                    className="p-2 rounded bg-white/20 hover:bg-white/30" title="Refresh list">🔄</button>
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block max-h-[45vh] overflow-y-auto pr-1" style={noBar}>
+            <table className="min-w-full text-sm text-white/90">
+              <thead className="bg-white/10 sticky top-0">
+                <tr>
+                  <th className="px-3 py-2 text-left">Slot</th>
+                  <th className="px-3 py-2 text-left">User</th>
+                  <th className="px-3 py-2">Start</th>
+                  <th className="px-3 py-2">End</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {active.map(r=>{
+                  const st=r.status.split('.').pop();
+                  const slot=adminData.slotMap[r.slot_id]||{};
+                  const loc=adminData.locationMap[slot.location_id]||{};
+                  return(
+                    <tr key={r.id} className="border-t border-white/20">
+                      <td className="px-3 py-2">{`${loc.name||'—'} • ${slot.slot_label||r.slot_id}`}</td>
+                      <td className="px-3 py-2">{adminData.userMap[r.user_id]||r.user_id}</td>
+                      <td className="px-3 py-2">{new Date(r.start_ts).toLocaleString('en-PH')}</td>
+                      <td className="px-3 py-2">{new Date(r.end_ts).toLocaleString('en-PH')}</td>
+                      <td className="px-3 py-2">{statusChip(st)}</td>
+                      <td className="px-3 py-2 flex gap-2">
+                        {st==='booked'   && <button onClick={()=>cancel(r.id)} className="p-1.5 bg-yellow-500 hover:bg-yellow-600 rounded">❌</button>}
+                        {st==='ongoing'  && <button onClick={()=>finish(r.id)} className="p-1.5 bg-green-600  hover:bg-green-700  rounded">✔️</button>}
+                        <button onClick={()=>setEdit({...r})} className="p-1.5 bg-blue-600  hover:bg-blue-700  rounded">✏️</button>
+                        <button onClick={()=>remove(r.id)}  className="p-1.5 bg-red-600   hover:bg-red-700   rounded">🗑️</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile list */}
+          <ul className="md:hidden space-y-3 max-h-[45vh] overflow-y-auto pr-1" style={noBar}>
+            {active.map(r=>{
+              const st=r.status.split('.').pop();
+              const slot=adminData.slotMap[r.slot_id]||{};
+              const loc=adminData.locationMap[slot.location_id]||{};
+              return(
+                <li key={r.id} className="border border-white/20 rounded-lg p-3 bg-white/5">
+                  <details>
+                    <summary className="cursor-pointer flex justify-between items-center">
+                      <span>{`${loc.name||'—'} • ${slot.slot_label||r.slot_id}`}</span>
+                      {statusChip(st)}
+                    </summary>
+                    <div className="mt-2 space-y-1 text-sm text-white/80">
+                      <p>User: {adminData.userMap[r.user_id]||r.user_id}</p>
+                      <p>Start: {new Date(r.start_ts).toLocaleString('en-PH')}</p>
+                      <p>End:&nbsp; {new Date(r.end_ts).toLocaleString('en-PH')}</p>
+                      <div className="flex gap-2 pt-1">
+                        {st==='booked'  && <button onClick={()=>cancel(r.id)}  className="p-1 bg-yellow-500 hover:bg-yellow-600 rounded text-xs">❌</button>}
+                        {st==='ongoing' && <button onClick={()=>finish(r.id)} className="p-1 bg-green-600  hover:bg-green-700  rounded text-xs">✔️</button>}
+                        <button onClick={()=>setEdit({...r})} className="p-1 bg-blue-600 hover:bg-blue-700 rounded text-xs">✏️</button>
+                        <button onClick={()=>remove(r.id)}   className="p-1 bg-red-600  hover:bg-red-700  rounded text-xs">🗑️</button>
+                      </div>
+                    </div>
+                  </details>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </section>
 
-      {/* ——— edit modal ——— */}
+      {/* ───── Edit modal ───── */}
       {edit && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow w-80 space-y-4">
-            <h3 className="font-semibold text-lg">
-              Edit Reservation #{edit.id}
-            </h3>
-
-            <label className="block text-sm">Slot ID
-              <input type="number"
-                     value={edit.slot_id}
-                     onChange={e => setEdit({ ...edit, slot_id: +e.target.value })}
-                     className="border w-full p-1 rounded mt-1" />
+          <div className="backdrop-blur-md bg-white/10 text-white border border-white/20 p-6 rounded-xl w-96 space-y-4 shadow-2xl">
+            <h3 className="font-semibold text-lg">Edit Reservation #{edit.id}</h3>
+            <label className="block text-sm">
+              Slot ID
+              <input type="number" value={edit.slot_id}
+                     onChange={e=>setEdit({...edit,slot_id:+e.target.value})}
+                     className="w-full p-2 mt-1 rounded bg-white/10 text-white border border-white/30"/>
             </label>
-
-            <label className="block text-sm">Start Time
-              <input type="datetime-local"
-                     value={edit.start_ts.slice(0, 16)}
-                     onChange={e => setEdit({ ...edit, start_ts: e.target.value })}
-                     className="border w-full p-1 rounded mt-1" />
+            <label className="block text-sm">
+              Start Time
+              <input type="datetime-local" value={isoToLocalInput(edit.start_ts)}
+                     onChange={e=>setEdit({...edit,start_ts:e.target.value})}
+                     className="w-full p-2 mt-1 rounded bg-white/10 text-white border border-white/30"/>
             </label>
-
-            <label className="block text-sm">End Time
-              <input type="datetime-local"
-                     value={edit.end_ts.slice(0, 16)}
-                     onChange={e => setEdit({ ...edit, end_ts: e.target.value })}
-                     className="border w-full p-1 rounded mt-1" />
+            <label className="block text-sm">
+              End Time
+              <input type="datetime-local" value={isoToLocalInput(edit.end_ts)}
+                     onChange={e=>setEdit({...edit,end_ts:e.target.value})}
+                     className="w-full p-2 mt-1 rounded bg-white/10 text-white border border-white/30"/>
             </label>
-
-            <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setEdit(null)}
-                      className="px-3 py-1 border rounded hover:bg-gray-100">
-                Cancel
-              </button>
-              <button onClick={saveEdit}
-                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
-                Save
-              </button>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={()=>setEdit(null)} className="px-4 py-1 rounded hover:bg-white/20">Cancel</button>
+              <button onClick={saveEdit}          className="px-4 py-1 bg-blue-600 rounded hover:bg-blue-700">Save</button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
