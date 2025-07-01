@@ -72,7 +72,7 @@ cd ingen-parking
 
 ### 2. Environment configuration
 
-Create the `.env` file by renaming `.env.sample` to `.env` and changing environment values
+Create the `.env` file by renaming `.env.sample` to `.env` and changing environment values.
 
 ### 3. Start the application
 
@@ -82,8 +82,15 @@ Make sure Docker is installed and running, then run:
 docker compose -f infra/docker-compose.yml up --build -d
 ```
 
+then:
+
+```bash
+cd frontend
+npm run dev
+```
+
 Access the frontend at `http://localhost:5173`  
-Access the API at `http://localhost:8000/api`
+Access the backend at `http://localhost:8000`
 
 ### 4. Apply database migrations
 
@@ -93,7 +100,7 @@ Inside the backend container:
 docker-compose exec backend flask db upgrade
 ```
 
-### 5. Seed initial data (optional but recommended)
+### 5. Seed initial data (is automatically done)
 
 ```bash
 docker-compose exec backend flask seed
@@ -124,7 +131,7 @@ docker-compose exec backend flask seed
 ## 🚀 Deployment Notes
 
 - I have deployed this project on **Render** using a `render.yaml` blueprint file.
--
+- Visit: https://ingen-parking-frontend.onrender.com
 - Make sure to configure your production `.env` files when using a different platform.
 
 ---
