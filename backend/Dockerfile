@@ -13,6 +13,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD CMD ["sh", "-c", "alembic upgrade head && python seed.py && gunicorn app:app --bind 0.0.0.0:${PORT:-8000}"]
-
-
+CMD ["sh", "-c", "alembic upgrade head && python seed.py && gunicorn app:app --bind 0.0.0.0:${PORT:-8000}"]
