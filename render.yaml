@@ -41,7 +41,7 @@ services:
         value: 8000                  # matches Dockerfile’s EXPOSE
 
   # ───────────── FRONTEND – Vite / React static site ─────────────
-  - type: web
+  - type: static-site
     name: ingen-parking-frontend
     runtime: static
     rootDir: frontend
@@ -57,6 +57,6 @@ databases:
   # ───────────── POSTGRES ─────────────
   - name: ingen-parking-db
     plan: free
-    postgresMajorVersion: '17'       # matches local Docker Compose (17.5)
+    postgresMajorVersion: '15'       # matches local Docker Compose (15)
     databaseName: ingenparking
     # Omit `password:` so Render generates a strong secret automatically
