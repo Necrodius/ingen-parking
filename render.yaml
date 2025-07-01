@@ -58,6 +58,5 @@ databases:
   - name: ingen-parking-db
     plan: free
     postgresMajorVersion: '17'       # matches local Docker Compose (17.5)
-    user: postgres                   # same as local
     databaseName: ingenparking
     # Omit `password:` so Render generates a strong secret automatically
