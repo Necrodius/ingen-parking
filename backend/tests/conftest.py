@@ -1,23 +1,24 @@
 """
-conftest.py – central test helpers for Ingen‑Parking
-===================================================
-• Spins up the Flask app in TESTING mode with a RAM SQLite DB.
+conftest.py – central Pytest helpers for Ingen‑Parking
+-----------------------------------------------------
+• Spins up a RAM SQLite DB for the whole session.
 • Provides fixtures:
     client, registered_user, admin_user,
     user_token, admin_token,
-    make_location()  -> creates a unique ParkingLocation via the API.
+    make_location()  -> creates a unique ParkingLocation.
+• Binds Marshmallow schemas to the test DB session so .load() works.
 """
 
-import pytest
-import bcrypt
+import pytest, bcrypt
 from uuid import uuid4
 
 from app import create_app
 from extensions import db as _db
 from models.user import User, UserRole
 
-
-# ────────────── DB + APP FIXTURE ────────────── #
+# ──────────────────────────────────────────────────────────────
+# 1.  APP + DB FIXTURE
+# ──────────────────────────────────────────────────────────────
 @pytest.fixture(scope="session")
 def app():
     flask_app = create_app()
@@ -25,13 +26,31 @@ def app():
         TESTING=True,
         SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        JWT_SECRET_KEY="unit-test-secret",
+        JWT_SECRET_KEY="unit‑test‑secret",
         FRONTEND_URL="http://localhost",
-        SCHEDULER_API_ENABLED=False,  # disable APScheduler inside tests
+        SCHEDULER_API_ENABLED=False,
     )
+
     with flask_app.app_context():
         _db.create_all()
+
+        # ── Bind Marshmallow schemas to this session ─────────────────
+        from schemas import (
+            parking_location_schema,
+            parking_slot_schema,
+            reservation_schema,
+        )
+
+        parking_location_schema.parking_location_schema.context["session"] = _db.session
+        parking_location_schema.parking_locations_schema.context["session"] = _db.session
+        parking_slot_schema.parking_slot_schema.context["session"] = _db.session
+        parking_slot_schema.parking_slots_schema.context["session"] = _db.session
+        reservation_schema.reservation_schema.context["session"] = _db.session
+        reservation_schema.reservations_schema.context["session"] = _db.session
+        # ─────────────────────────────────────────────────────────────
+
         yield flask_app
+
         _db.session.remove()
         _db.drop_all()
 
@@ -41,21 +60,22 @@ def client(app):
     return app.test_client()
 
 
-# ────────────── USER HELPERS ────────────── #
-def _hash_pw(pwd: str) -> str:
-    # low rounds for CI speed; safe because test DB only
+# ──────────────────────────────────────────────────────────────
+# 2.  USER HELPERS
+# ──────────────────────────────────────────────────────────────
+def _hash(pwd: str) -> str:
     return bcrypt.hashpw(pwd.encode(), bcrypt.gensalt(rounds=4)).decode()
 
 
 def _upsert_user(email: str, password: str, role: UserRole) -> User:
-    prev = User.query.filter_by(email=email).first()
-    if prev:
-        _db.session.delete(prev)
+    prior = User.query.filter_by(email=email).first()
+    if prior:
+        _db.session.delete(prior)
         _db.session.commit()
 
     user = User(
         email=email,
-        password_hash=_hash_pw(password),
+        password_hash=_hash(password),
         first_name=email.split("@")[0],
         last_name="Test",
         role=role,
@@ -76,11 +96,13 @@ def admin_user(app):
     return _upsert_user("admin@test.dev", "admin123", UserRole.admin)
 
 
-# ────────────── TOKEN HELPERS ────────────── #
+# ──────────────────────────────────────────────────────────────
+# 3.  TOKEN FIXTURES
+# ──────────────────────────────────────────────────────────────
 def _login(client, email: str, password: str) -> str:
-    resp = client.post("/api/auth/login", json={"email": email, "password": password})
-    assert resp.status_code == 200, resp.get_json()
-    return resp.get_json()["access_token"]
+    res = client.post("/api/auth/login", json={"email": email, "password": password})
+    assert res.status_code == 200, res.get_json()
+    return res.get_json()["access_token"]
 
 
 @pytest.fixture
@@ -93,24 +115,26 @@ def admin_token(client, admin_user):
     return _login(client, admin_user.email, "admin123")
 
 
-# ────────────── LOCATION HELPER ────────────── #
+# ──────────────────────────────────────────────────────────────
+# 4.  make_location FIXTURE  (admin token inside)
+# ──────────────────────────────────────────────────────────────
 @pytest.fixture
 def make_location(client, admin_token):
-    """Return a helper that creates a ParkingLocation via the API."""
+    """Factory helper that creates a ParkingLocation; returns its JSON dict."""
     def _create(total_slots: int = 10, prefix: str = "Garage") -> dict:
         payload = {
             "name": f"{prefix}-{uuid4()}",
-            "address": "123 Main St",
-            "latitude": 1.23,
-            "longitude": 4.56,
+            "address": "123 Main St",
+            "latitude": 1.0,
+            "longitude": 2.0,
             "total_slots": total_slots,
         }
-        resp = client.post(
+        res = client.post(
             "/api/parking_location/locations",
             json=payload,
             headers={"Authorization": f"Bearer {admin_token}"},
         )
-        assert resp.status_code == 201, resp.get_json()
-        return resp.get_json()["location"]
+        assert res.status_code == 201, res.get_json()
+        return res.get_json()["location"]
 
     return _create
