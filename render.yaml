@@ -51,7 +51,6 @@ services:
       - type: rewrite
         source: /*
         destination: /
-        status: 200
 
 databases:
   - name: ingen-parking-db
