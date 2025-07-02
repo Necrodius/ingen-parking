@@ -36,8 +36,14 @@ def app():
 
         # ── Monkey‑patch: set default session for all Marshmallow‑SQLAlchemy schemas ──
         from marshmallow_sqlalchemy import SQLAlchemySchema, SQLAlchemyAutoSchema
-        SQLAlchemySchema.opts.sqla_session = _db.session
-        SQLAlchemyAutoSchema.opts.sqla_session = _db.session
+        def _inject_session(cls):
+            """Recursively set sqla_session on each Schema subclass."""
+            if getattr(cls.opts, "sqla_session", None) is None:
+                cls.opts.sqla_session = _db.session
+            for sub in cls.__subclasses__():
+                _inject_session(sub)
+
+        _inject_session(SQLAlchemySchema)
 
         # ── Bind Marshmallow schemas to this session ───────────────────────
         from schemas import (
