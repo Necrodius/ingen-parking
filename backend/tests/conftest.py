@@ -135,9 +135,9 @@ def make_location(client, admin_token):
     def _create(total_slots: int = 10, prefix: str = "Garage") -> dict:
         payload = {
             "name": f"{prefix}-{uuid4()}",
-            "address": "123 Main St",
-            "latitude": 1.0,
-            "longitude": 2.0,
+            "address": "123 Main St",
+            "lat": 1.0,
+            "lng": 2.0,
             "total_slots": total_slots,
         }
         res = client.post(
