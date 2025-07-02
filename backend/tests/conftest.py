@@ -55,7 +55,7 @@ def registered_user(app):
 
     user = User(
         email="user@test.dev",
-        password_hash=bcrypt.hashpw("rawpass".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
+        password_hash=bcrypt.hashpw("userpass".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
         first_name="Jane",
         last_name="Doe",
         role=UserRole.user,
@@ -72,7 +72,7 @@ def admin_user(app):
     """
     admin = User(
         email="admin@test.dev",
-        password_hash=generate_password_hash("admin123"),
+        password_hash=bcrypt.hashpw("adminpass".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
         first_name="Admin",
         last_name="Root",
         role=UserRole.admin,
