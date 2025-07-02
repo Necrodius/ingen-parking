@@ -1,16 +1,18 @@
 """
-conftest.py – central Pytest helpers for Ingen‑Parking
------------------------------------------------------
-• Spins up a RAM SQLite DB for the whole session.
+conftest.py – central Pytest helpers for Ingen‑Parking
+──────────────────────────────────────────────────────
+• Spins up an in‑memory SQLite DB for the test session.
 • Provides fixtures:
     client, registered_user, admin_user,
     user_token, admin_token,
-    make_location()  -> creates a unique ParkingLocation.
-• Binds Marshmallow schemas to the test DB session so .load() works.
+    make_location()  -> creates a unique ParkingLocation with N fresh slots.
 """
+
+from __future__ import annotations
 
 import pytest, bcrypt
 from uuid import uuid4
+from typing import Generator, Callable, Dict, Any
 
 from app import create_app
 from extensions import db as _db
@@ -20,7 +22,8 @@ from models.user import User, UserRole
 # 1.  APP + DB FIXTURE
 # ──────────────────────────────────────────────────────────────
 @pytest.fixture(scope="session")
-def app():
+def app() -> Generator:
+    """Create a Flask app bound to an in‑memory SQLite DB for the *entire* test run."""
     flask_app = create_app()
     flask_app.config.update(
         TESTING=True,
@@ -34,31 +37,19 @@ def app():
     with flask_app.app_context():
         _db.create_all()
 
-        # ── Monkey‑patch: set default session for all Marshmallow‑SQLAlchemy schemas ──
-        from marshmallow_sqlalchemy import SQLAlchemySchema, SQLAlchemyAutoSchema
-        def _inject_session(cls):
-            """Recursively set sqla_session on each Schema subclass."""
+        # ── Import every schema module so subclasses are registered ─────────
+        from schemas import parking_location_schema, parking_slot_schema, reservation_schema  # noqa: F401
+
+        # ── Monkey‑patch: inject test session into *all* schema subclasses ──
+        from marshmallow_sqlalchemy import SQLAlchemySchema
+
+        def _inject_session(cls: type) -> None:
             if getattr(cls.opts, "sqla_session", None) is None:
                 cls.opts.sqla_session = _db.session
             for sub in cls.__subclasses__():
                 _inject_session(sub)
 
         _inject_session(SQLAlchemySchema)
-
-        # ── Bind Marshmallow schemas to this session ───────────────────────
-        from schemas import (
-            parking_location_schema,
-            parking_slot_schema,
-            reservation_schema,
-        )
-
-        parking_location_schema.parking_location_schema.context["session"] = _db.session
-        parking_location_schema.parking_locations_schema.context["session"] = _db.session
-        parking_slot_schema.parking_slot_schema.context["session"] = _db.session
-        parking_slot_schema.parking_slots_schema.context["session"] = _db.session
-        reservation_schema.reservation_schema.context["session"] = _db.session
-        reservation_schema.reservations_schema.context["session"] = _db.session
-        # ──────────────────────────────────────────────────────────────────
 
         yield flask_app
 
@@ -68,22 +59,22 @@ def app():
 
 @pytest.fixture
 def client(app):
+    """A test client for issuing requests to the Flask app."""
     return app.test_client()
-
 
 # ──────────────────────────────────────────────────────────────
 # 2.  USER HELPERS
 # ──────────────────────────────────────────────────────────────
 def _hash(pwd: str) -> str:
-    return bcrypt.hashpw(pwd.encode(), bcrypt.gensalt(rounds=4)).decode()
+    """Generate a bcrypt hash with 12 rounds (fast in CI, still realistic)."""
+    return bcrypt.hashpw(pwd.encode(), bcrypt.gensalt(rounds=12)).decode()
 
 
 def _upsert_user(email: str, password: str, role: UserRole) -> User:
+    """Create or replace a user so each test starts from a clean slate."""
     prior = User.query.filter_by(email=email).first()
     if prior:
         _db.session.delete(prior)
-        _db.session.commit()
-
     user = User(
         email=email,
         password_hash=_hash(password),
@@ -106,7 +97,6 @@ def registered_user(app):
 def admin_user(app):
     return _upsert_user("admin@test.dev", "admin123", UserRole.admin)
 
-
 # ──────────────────────────────────────────────────────────────
 # 3.  TOKEN FIXTURES
 # ──────────────────────────────────────────────────────────────
@@ -125,20 +115,22 @@ def user_token(client, registered_user):
 def admin_token(client, admin_user):
     return _login(client, admin_user.email, "admin123")
 
-
 # ──────────────────────────────────────────────────────────────
-# 4.  make_location FIXTURE  (admin token inside)
+# 4.  make_location FIXTURE
 # ──────────────────────────────────────────────────────────────
 @pytest.fixture
-def make_location(client, admin_token):
-    """Factory helper that creates a ParkingLocation; returns its JSON dict."""
-    def _create(total_slots: int = 10, prefix: str = "Garage") -> dict:
+def make_location(client, admin_token) -> Callable[[int, str], Dict[str, Any]]:
+    """Create a ParkingLocation + <slot_count> fresh slots, return its JSON dict."""
+
+    from models.parking_slot import ParkingSlot  # late import keeps startup quick
+
+    def _create(slot_count: int = 10, prefix: str = "Garage") -> Dict[str, Any]:
+        # 1️⃣  Create the location via real HTTP route
         payload = {
             "name": f"{prefix}-{uuid4()}",
-            "address": "123 Main St",
+            "address": "123 Main St",
             "lat": 1.0,
             "lng": 2.0,
-            "total_slots": total_slots,
         }
         res = client.post(
             "/api/parking_location/locations",
@@ -146,6 +138,22 @@ def make_location(client, admin_token):
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert res.status_code == 201, res.get_json()
-        return res.get_json()["location"]
+        location = res.get_json()["location"]
+
+        # 2️⃣  Bulk‑insert slots for speed
+        _db.session.bulk_save_objects(
+            [
+                ParkingSlot(
+                    slot_label=f"Slot-{i}",
+                    location_id=location["id"],
+                    is_available=True,
+                )
+                for i in range(1, slot_count + 1)
+            ]
+        )
+        _db.session.commit()
+
+        location["available_slots"] = slot_count
+        return location
 
     return _create
