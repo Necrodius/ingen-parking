@@ -25,6 +25,9 @@ services:
     working_dir: /app
     ports:
       - "8000:8000"
+#    # Ommit on prod
+#    volumes:
+#      - ../backend:/app
 
 volumes:
   db_data:

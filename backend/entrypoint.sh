@@ -1,8 +1,11 @@
+#!/usr/bin/env sh
 set -e  # Exit immediately if a command exits with a non-zero status
 
+# Ommit on dev
 echo "Running Alembic migrations..."
 alembic stamp base
 
+#Ommit on dev
 echo "Seeding database..."
 python seed.py
 
