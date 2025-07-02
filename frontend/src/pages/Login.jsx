@@ -4,162 +4,118 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../utils/api';
 import toast from 'react-hot-toast';
 
+/* single source for clearing the form -------------------------- */
+const EMPTY = {
+  email: '', password: '', confirmPassword: '', first_name: '', last_name: '',
+};
+
 export default function Login() {
   const navigate  = useNavigate();
   const { login } = useAuth();
   const api       = useApi();
 
-  /* ui mode: 'login' or 'register' */
+  /* ui mode: 'login' | 'register'  (JS version) */
   const [mode, setMode] = useState('login');
+  const [form, setForm] = useState(EMPTY);
 
-  /* form state */
-  const [form, setForm] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    first_name: '',
-    last_name : '',
-  });
-
-  /* keep state in sync with inputs */
+  /* keep inputs in sync */
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  /* --------------- submit --------------- */
+  /* submit handler */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      /* ---------- 1. Register (optional) ---------- */
       if (mode === 'register') {
         if (form.password !== form.confirmPassword)
           throw new Error('Passwords do not match');
 
         await api.post('/auth/register', {
-          email      : form.email,
-          password   : form.password,
-          first_name : form.first_name,
-          last_name  : form.last_name,
+          email: form.email, password: form.password,
+          first_name: form.first_name, last_name: form.last_name,
         });
         toast.success('Registration complete! Please sign in.');
-        setMode('login');          // switch UI to login after successful signup
+        setMode('login');
         return;
       }
 
-      /* ---------- 2. Login ---------- */
       const { access_token } = await api.post('/auth/login', {
-        email   : form.email,
-        password: form.password,
+        email: form.email, password: form.password,
       });
 
-      /* save JWT, redirect, toast */
-      login(access_token);                       // put token in context
+      login(access_token);
       localStorage.setItem('token', access_token);
       toast.success('Welcome!');
       navigate('/');
-
     } catch (err) {
       toast.error(err.message);
     }
   };
 
-  /* toggle login/register form */
-  const swapMode = () => {
-    setForm({
-      email: '',
-      password: '',
-      confirmPassword: '',
-      first_name: '',
-      last_name : '',
-    });
-    setMode((m) => (m === 'login' ? 'register' : 'login'));
-  };
+  /* switch form + clear fields */
+  const swapMode = () => { setForm(EMPTY); setMode(mode === 'login' ? 'register' : 'login'); };
 
-  /* --------------- UI --------------- */
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-16 bg-gradient-to-br from-blue-700 via-indigo-700 to-purple-700">
-      <div className="w-full max-w-md space-y-6 backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl p-8 shadow-2xl">
-        <h1 className="text-center text-3xl font-extrabold text-white drop-shadow">
+    <main className="
+        min-h-screen flex items-center justify-center
+        p-4 sm:p-8 md:p-12 lg:p-16
+        bg-gradient-to-br from-blue-700 via-indigo-700 to-purple-700">
+      <div className="
+          w-full max-w-[90vw] sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl
+          space-y-6 sm:space-y-8
+          backdrop-blur-md bg-white/10 border border-white/20
+          rounded-3xl md:rounded-[2rem] p-5 sm:p-6 md:p-8 lg:p-10
+          shadow-2xl">
+        <h1 className="
+            text-center font-extrabold drop-shadow text-3xl
+            sm:text-4xl md:text-5xl text-white">
           {mode === 'login' ? 'Sign in to Smart Parking' : 'Create your account'}
         </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+          {/* email */}
           <input
-            name="email"
-            type="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            className="w-full min-w-0 rounded-lg bg-white/90 py-2 px-3 focus:outline-none"
-            required
-          />
+            name="email" type="email" placeholder="Email"
+            value={form.email} onChange={handleChange}
+            className="w-full rounded-lg bg-white/90 py-2.5 px-3 focus:outline-none" required />
 
-          {mode === 'register' && (
+          {/* register‑only fields */}
+          {mode === 'register' ? (
             <>
-              {/* first / last row becomes vertical < sm */}
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  name="first_name"
-                  placeholder="First name"
-                  value={form.first_name}
-                  onChange={handleChange}
-                  className="w-full sm:flex-1 min-w-0 rounded-lg bg-white/90 py-2 px-3"
-                  required
-                />
-                <input
-                  name="last_name"
-                  placeholder="Last name"
-                  value={form.last_name}
-                  onChange={handleChange}
-                  className="w-full sm:flex-1 min-w-0 rounded-lg bg-white/90 py-2 px-3"
-                  required
-                />
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <input name="first_name" placeholder="First name" value={form.first_name}
+                  onChange={handleChange} className="flex-1 rounded-lg bg-white/90 py-2.5 px-3" required />
+                <input name="last_name" placeholder="Last name" value={form.last_name}
+                  onChange={handleChange} className="flex-1 rounded-lg bg-white/90 py-2.5 px-3" required />
               </div>
-              <input
-                name="confirmPassword"
-                type="password"
-                placeholder="Confirm password"
-                value={form.confirmPassword}
-                onChange={handleChange}
-                className="w-full min-w-0 rounded-lg bg-white/90 py-2 px-3"
-                required
-              />
+              <input name="password" type="password" placeholder="Password"
+                value={form.password} onChange={handleChange}
+                className="w-full rounded-lg bg-white/90 py-2.5 px-3" required />
+              <input name="confirmPassword" type="password" placeholder="Confirm password"
+                value={form.confirmPassword} onChange={handleChange}
+                className="w-full rounded-lg bg-white/90 py-2.5 px-3" required />
             </>
+          ) : (
+            /* login mode: just password */
+            <input name="password" type="password" placeholder="Password"
+              value={form.password} onChange={handleChange}
+              className="w-full rounded-lg bg-white/90 py-2.5 px-3" required />
           )}
 
-          <input
-            name="password"
-            type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={handleChange}
-            className="w-full min-w-0 rounded-lg bg-white/90 py-2 px-3"
-            required
-          />
-
-          <button
-            type="submit"
-            className="w-full py-2 rounded-lg bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500
-                       text-white font-semibold tracking-wide hover:scale-[1.03] transition"
-          >
+          <button type="submit" className="
+              w-full rounded-lg font-semibold tracking-wide text-white
+              py-2 sm:py-2.5 md:py-3
+              bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500
+              hover:scale-[1.03] transition">
             {mode === 'login' ? 'Login' : 'Register'}
           </button>
         </form>
 
-        <p className="text-center text-sm text-white/80">
+        <p className="text-center text-sm sm:text-base text-white/80">
           {mode === 'login' ? (
-            <>
-              Need an account?{' '}
-              <button onClick={swapMode} className="underline font-medium">
-                Register
-              </button>
-            </>
+            <>Need an account? <button onClick={swapMode} className="underline font-medium">Register</button></>
           ) : (
-            <>
-              Already have an account?{' '}
-              <button onClick={swapMode} className="underline font-medium">
-                Sign in
-              </button>
-            </>
+            <>Already have an account? <button onClick={swapMode} className="underline font-medium">Sign in</button></>
           )}
         </p>
       </div>
