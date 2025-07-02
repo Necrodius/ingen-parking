@@ -8,10 +8,7 @@ from models.user import UserRole
 
 
 class TestAuthRoutes:
-    """Test authentication endpoints"""
-    
     def test_register_success(self, client):
-        """Test successful user registration"""
         email = f"new-{uuid4()}@test.dev"
         payload = {
             "email": email,
@@ -26,7 +23,6 @@ class TestAuthRoutes:
         assert "id" in data
     
     def test_register_duplicate_email(self, client):
-        """Test registration with duplicate email returns 409"""
         email = f"dup-{uuid4()}@test.dev"
         payload = {
             "email": email,
@@ -44,7 +40,6 @@ class TestAuthRoutes:
         assert "error" in res2.get_json()
     
     def test_register_validation_errors(self, client):
-        """Test registration with invalid data"""
         # Missing required fields
         res = client.post("/api/auth/register", json={})
         assert res.status_code == 400
@@ -60,7 +55,6 @@ class TestAuthRoutes:
         assert res.status_code == 400
     
     def test_login_success(self, client, registered_user):
-        """Test successful login"""
         res = client.post("/api/auth/login", json={
             "email": registered_user.email,
             "password": "pass1234"
@@ -70,7 +64,6 @@ class TestAuthRoutes:
         assert "access_token" in data
     
     def test_login_invalid_credentials(self, client, registered_user):
-        """Test login with wrong password"""
         res = client.post("/api/auth/login", json={
             "email": registered_user.email,
             "password": "wrongpass"
@@ -79,7 +72,6 @@ class TestAuthRoutes:
         assert res.get_json()["error"] == "Invalid credentials"
     
     def test_login_nonexistent_user(self, client):
-        """Test login with non-existent email"""
         res = client.post("/api/auth/login", json={
             "email": "nonexistent@test.dev",
             "password": "anypass"
@@ -87,7 +79,6 @@ class TestAuthRoutes:
         assert res.status_code == 401
     
     def test_login_deactivated_account(self, client, app):
-        """Test login with deactivated account returns 403"""
         from models.user import User
         from extensions import db
         from utils.security import hash_password

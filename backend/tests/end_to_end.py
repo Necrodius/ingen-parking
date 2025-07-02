@@ -1,7 +1,3 @@
-"""
-End‑to‑end flows for both a normal user and an admin.
-"""
-
 from uuid import uuid4
 import pytest
 

@@ -1,13 +1,3 @@
-"""
-conftest.py – central Pytest helpers for Ingen‑Parking
-──────────────────────────────────────────────────────
-• Spins up an in‑memory SQLite DB for the test session.
-• Provides fixtures:
-    client, registered_user, admin_user,
-    user_token, admin_token,
-    make_location()  → returns a dict‑AND‑model hybrid.
-"""
-
 from __future__ import annotations
 
 import bcrypt
@@ -25,11 +15,6 @@ from models.user import User, UserRole
 # │ 0.  A tiny reusable wrapper – model ⇄ dict hybrid           │
 # ╰─────────────────────────────────────────────────────────────╯
 class _HybridModelDict(MutableMapping):
-    """
-    Wrap a SQLAlchemy model so it can be used BOTH as:
-      • an object  – `obj.id`, `obj.name`
-      • a mapping – `json={**obj}`
-    """
     def __init__(self, model, data: Dict[str, Any]):
         self._model = model
         self._data  = data     # serialised dict (API‑friendly)
@@ -54,7 +39,6 @@ class _HybridModelDict(MutableMapping):
 # ╰─────────────────────────────────────────────────────────────╯
 @pytest.fixture(scope="session")
 def app() -> Generator:
-    """Create a Flask app bound to an in‑memory SQLite DB for the *entire* test run."""
     flask_app = create_app()
     flask_app.config.update(
         TESTING=True,
@@ -103,19 +87,16 @@ def app() -> Generator:
 
 @pytest.fixture
 def client(app):
-    """A test client for issuing requests to the Flask app."""
     return app.test_client()
 
 # ╭─────────────────────────────────────────────────────────────╮
 # │ 2.  USER HELPERS                                            │
 # ╰─────────────────────────────────────────────────────────────╯
 def _hash_password(password: str) -> str:
-    """Generate a bcrypt hash with 12 rounds (fast in CI, still realistic)."""
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
 
 
 def _create_or_update_user(email: str, password: str, role: UserRole, **kwargs) -> User:
-    """Create or replace a user so each test starts from a clean slate."""
     existing = User.query.filter_by(email=email).first()
     if existing:
         _db.session.delete(existing)
@@ -178,14 +159,6 @@ def admin_token(client, admin_user):
 # ╰─────────────────────────────────────────────────────────────╯
 @pytest.fixture
 def make_location(client, admin_token, app) -> Callable[..., _HybridModelDict]:
-    """
-    Factory: create a ParkingLocation plus N fresh slots and
-    return a dict‑AND‑model hybrid.
-
-    Usage:
-        loc = make_location(total_slots=20, prefix="Expo‑Garage")
-        client.post("/api/parking_location/locations", json={**loc})
-    """
     from models.parking_slot import ParkingSlot
     from models.parking_location import ParkingLocation
     from schemas.parking_location_schema import ParkingLocationSchema
@@ -272,12 +245,6 @@ def clean_db(app):
 # ╰─────────────────────────────────────────────────────────────╯
 @pytest.fixture
 def reservation_factory(client, user_token, make_location, future_datetime):
-    """
-    Quickly create a reservation for tests.
-
-    Example:
-        res = reservation_factory(hours_from_now=2)
-    """
     def _factory(
         slot_id: int | None = None,
         hours_from_now: int = 1,

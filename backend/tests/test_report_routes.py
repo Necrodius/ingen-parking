@@ -3,10 +3,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestReportsRoutes:
-    """Test admin reports endpoints"""
-    
     def test_reservations_per_day_admin(self, client, admin_token):
-        """Test admin can access reservations per day report"""
         res = client.get("/api/reports/reservations-per-day",
                         headers={"Authorization": f"Bearer {admin_token}"})
         assert res.status_code == 200
