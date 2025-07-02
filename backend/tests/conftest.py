@@ -1,53 +1,72 @@
 """
-conftest.py – Pytest fixtures shared by all test files.
-Each line has comments to show exactly what is happening.
+conftest.py – Shared Pytest fixtures for the Ingen‑Parking backend
+------------------------------------------------------------------
+• Spins up the Flask app in TESTING mode with an in‑memory SQLite DB.
+• Provides clean `client`, `registered_user`, `admin_user`,
+  and ready‑to‑use JWT fixtures (`user_token`, `admin_token`).
+• Uses bcrypt everywhere so test hashing = production hashing.
 """
+
 import pytest
-from app import create_app, db   # your factory & db instance
-from models.user import User, UserRole  # adjust import if path differs
 import bcrypt
+from app import create_app, db
+from models.user import User, UserRole
 
-TEST_DB_URI = "sqlite:///:memory:"  # fast, disposable DB for tests
+# ---------------------------------------------------------------------
+# Basic config
+# ---------------------------------------------------------------------
+TEST_DB_URI = "sqlite:///:memory:"  # super‑fast disposable DB
 
 
+def _hash_password(plain: str) -> str:
+    """Return a bcrypt hash (low cost factor = faster CI)."""
+    return bcrypt.hashpw(
+        plain.encode("utf-8"),
+        bcrypt.gensalt(rounds=4),      # rounds=4 ⇒ much faster than default 12
+    ).decode("utf-8")
+
+
+# ---------------------------------------------------------------------
+# Flask application & client fixtures
+# ---------------------------------------------------------------------
 @pytest.fixture(scope="session")
 def app():
     """
-    Build a fully configured Flask app in TESTING mode, backed by an
-    in‑memory SQLite DB so every test run starts from a clean slate.
+    Factory‑based app in TESTING mode.
+    Creates all tables once per session and drops them when done.
     """
     flask_app = create_app()
     flask_app.config.update(
-        TESTING=True,                         # tells Flask & extensions we’re in test mode
-        SQLALCHEMY_DATABASE_URI=TEST_DB_URI,  # swap real DB → SQLite RAM
-        JWT_SECRET_KEY="unit‑test‑secret",    # simple secret for JWT
-        SCHEDULER_API_ENABLED=False           # don’t spin up APScheduler
+        TESTING=True,
+        SQLALCHEMY_DATABASE_URI=TEST_DB_URI,
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        JWT_SECRET_KEY="unit‑test‑secret",
+        FRONTEND_URL="http://localhost",
+        SCHEDULER_API_ENABLED=False,   # disable APScheduler during tests
     )
 
     with flask_app.app_context():
-        db.create_all()     # create tables once per test session
+        db.create_all()
         yield flask_app
-        db.session.remove() # cleanly close connections
-        db.drop_all()       # drop all tables after the session
+        db.session.remove()
+        db.drop_all()
 
 
 @pytest.fixture
 def client(app):
-    """
-    Returns Flask’s built‑in test client, already bound to the app fixture.
-    A fresh client is supplied to each test so cookies / headers don’t leak.
-    """
+    """Flask test client (fresh instance each test)."""
     return app.test_client()
 
 
-# ------------------------------------------------------------------
-# Helper fixtures for quickly creating a user and grabbing a JWT
-# ------------------------------------------------------------------
-
+# ---------------------------------------------------------------------
+# User fixtures
+# ---------------------------------------------------------------------
 @pytest.fixture
 def registered_user(app):
-    """Ensures test user is inserted once per test."""
-    # Clean up if test user already exists
+    """
+    Normal USER account hashed with bcrypt.
+    Deleted & re‑added each time to avoid UNIQUE clashes.
+    """
     existing = User.query.filter_by(email="user@test.dev").first()
     if existing:
         db.session.delete(existing)
@@ -55,7 +74,7 @@ def registered_user(app):
 
     user = User(
         email="user@test.dev",
-        password_hash=bcrypt.hashpw("userpass".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
+        password_hash=_hash_password("pass1234"),
         first_name="Jane",
         last_name="Doe",
         role=UserRole.user,
@@ -65,14 +84,18 @@ def registered_user(app):
     db.session.commit()
     return user
 
+
 @pytest.fixture
 def admin_user(app):
-    """
-    Same idea as registered_user but with admin privileges.
-    """
+    """Admin account for privileged‑endpoint tests."""
+    existing = User.query.filter_by(email="admin@test.dev").first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+
     admin = User(
         email="admin@test.dev",
-        password_hash=bcrypt.hashpw("adminpass".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
+        password_hash=_hash_password("admin123"),
         first_name="Admin",
         last_name="Root",
         role=UserRole.admin,
@@ -83,23 +106,22 @@ def admin_user(app):
     return admin
 
 
-def _login(client, email, password):
-    """Utility: POST /api/auth/login and return JWT string."""
-    res = client.post(
-        "/api/auth/login",
-        json={"email": email, "password": password},
-    )
+# ---------------------------------------------------------------------
+# Helper to perform real /login and extract JWT
+# ---------------------------------------------------------------------
+def _login(client, email: str, password: str) -> str:
+    res = client.post("/api/auth/login", json={"email": email, "password": password})
     assert res.status_code == 200, res.get_json()
     return res.get_json()["access_token"]
 
 
 @pytest.fixture
 def user_token(client, registered_user):
-    """JWT for normal user."""
+    """JWT for the normal user fixture."""
     return _login(client, registered_user.email, "pass1234")
 
 
 @pytest.fixture
 def admin_token(client, admin_user):
-    """JWT for admin."""
+    """JWT for the admin user fixture."""
     return _login(client, admin_user.email, "admin123")
