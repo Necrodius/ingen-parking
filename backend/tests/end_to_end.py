@@ -30,7 +30,7 @@ def test_user_flow(client):
     # 3. try to create a location (should fail 401/403)
     bad = client.post(
         "/api/parking_location/locations",
-        json={"name": "Hack", "address": "X", "latitude": 0, "longitude": 0, "total_slots": 1},
+        json={"name": "Hack", "address": "X", "lat": 0, "lng": 0, "total_slots": 1},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert bad.status_code in (401, 403)

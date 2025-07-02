@@ -195,8 +195,8 @@ def make_location(client, admin_token, app) -> Callable[..., _HybridModelDict]:
         payload = {
             "name": f"{prefix}-{uuid4()}",
             "address": f"{uuid4().hex[:8]} Test Street",
-            "latitude": round(10 + (hash(prefix) % 1000) / 1000, 6),
-            "longitude": round(123 + (hash(prefix) % 1000) / 1000, 6),
+            "lat": round(10 + (hash(prefix) % 1000) / 1000, 6),
+            "lng": round(123 + (hash(prefix) % 1000) / 1000, 6),
         }
 
         # 2️⃣  Create the location via HTTP to exercise the real route
