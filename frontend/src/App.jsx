@@ -16,10 +16,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ---------- Public Routes ---------- */}
+        {/* Public Routes */}
         <Route path="/login" element={<Login />} />
 
-        {/* ---------- Protected Routes (shared <Layout>) ---------- */}
+        {/* Protected Routes with shared <Layout/> */}
         <Route element={<Layout />}>
           {/* Home */}
           <Route
@@ -61,7 +61,7 @@ export default function App() {
             }
           />
 
-          {/* ---------- User booking flow ---------- */}
+          {/* User booking flow */}
           <Route
             path="/locations"
             element={
@@ -87,7 +87,7 @@ export default function App() {
             }
           />
 
-          {/* ---------- User profile ---------- */}
+          {/* Profile*/}
           <Route
             path="/profile"
             element={
@@ -98,7 +98,7 @@ export default function App() {
           />
         </Route>
 
-        {/* ---------- Fallback (404) ---------- */}
+        {/* Fallback (404) */}
         <Route path="*" element={<p className="p-6">404 Page not found</p>} />
       </Routes>
     </BrowserRouter>

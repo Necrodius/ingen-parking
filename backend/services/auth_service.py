@@ -47,7 +47,7 @@ class AuthService:
     def authenticate(*, email: str, password: str) -> Optional[User]:
         email_norm = normalize_email(email)
 
-        # Reuse UserService to retrieve by email
+        # UserService to retrieve by email
         user = UserService.get_by_email(email_norm)
 
         if user and verify_password(password, user.password_hash):

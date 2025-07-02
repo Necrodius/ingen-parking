@@ -62,8 +62,9 @@ class ParkingLocationService:
     # ---------- DELETE ----------
     @staticmethod
     def delete_location(loc: ParkingLocation) -> None:
-        # Option A: cascade delete via SQLAlchemy relationships (already set).
-        # Option B: guard if active reservations exist – implement later.
+
+        # TO DO: guard if active reservations exist.
+
         db.session.delete(loc)
         db.session.commit()
 

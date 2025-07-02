@@ -116,20 +116,16 @@ def cancel_reservation(reservation_id):
 @reservation_bp.post("/reservations/<int:reservation_id>/finish")
 @jwt_required()
 def finish_reservation(reservation_id):
-    """
-    Admins can finish any reservation; normal users can finish their own.
-    All persistence is handled by ReservationService.finish().
-    """
     try:
         res     = ReservationService.get(reservation_id)
         user_id = int(get_jwt_identity())
         claims  = get_jwt()
 
-        # ── ACL check ──────────────────────────────────────────────
+        # ACL Check
         if claims.get("role") != UserRole.admin.value and res.user_id != user_id:
             return jsonify({"error": "Unauthorized"}), 403
 
-        # ── Delegate business logic ───────────────────────────────
+        # Finish using service
         finished = ReservationService.finish(res)
         return jsonify({"reservation": reservation_schema.dump(finished)}), 200
 

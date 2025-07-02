@@ -1,3 +1,6 @@
+# This file defines the UserService class, which provides methods for managing users.
+# It includes methods for creating, reading, updating, and deleting users and admins.
+
 from typing import List, Optional
 from sqlalchemy.exc import IntegrityError
 from extensions import db

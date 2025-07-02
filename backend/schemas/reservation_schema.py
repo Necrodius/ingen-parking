@@ -13,7 +13,7 @@ class ReservationSchema(SQLAlchemyAutoSchema):
         include_fk = True
         ordered = True
 
-    # ---------- READ‑ONLY FIELDS ----------
+    # ---------- READ ----------
     id         = fields.Integer(dump_only=True)
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
@@ -22,12 +22,12 @@ class ReservationSchema(SQLAlchemyAutoSchema):
         validate=validate.OneOf([s.value for s in ReservationStatus])
     )
 
-    # ---------- INPUT FIELDS ----------
-    start_ts = fields.DateTime(required=True)      # ISO 8601 string
-    end_ts   = fields.DateTime(required=True)      # ISO 8601 string
+    # ---------- WRITE ----------
+    start_ts = fields.DateTime(required=True)
+    end_ts   = fields.DateTime(required=True)
     slot_id  = fields.Integer(required=True)
-    user_id  = fields.Integer(dump_only=True)      # set server‑side
+    
+    user_id  = fields.Integer(dump_only=True)
 
-# Single + many helpers (same pattern as other schemas)
 reservation_schema  = ReservationSchema()
 reservations_schema = ReservationSchema(many=True)

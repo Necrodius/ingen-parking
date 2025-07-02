@@ -6,13 +6,12 @@ from flask import current_app as app
 from extensions import db
 from models.reservation import Reservation, ReservationStatus
 
-
+# Update reservation status
 def update_reservation_statuses() -> None:
-    """Promote booked→ongoing and ongoing→finished reservations."""
+    
     now = datetime.now(timezone.utc)
-    app.logger.info("🔄 Updating reservation statuses at %s", now.isoformat())
 
-    # booked → ongoing
+    # Booked reservation where start date is after now
     booked_to_ongoing = (
         Reservation.query
         .filter(
@@ -22,7 +21,7 @@ def update_reservation_statuses() -> None:
         .all()
     )
 
-    # ongoing → finished
+    # Ongoing reservations where end date is before now
     to_finished = (
         Reservation.query
         .filter(
@@ -32,15 +31,14 @@ def update_reservation_statuses() -> None:
         .all()
     )
 
+    # Booked to ongoing
     for r in booked_to_ongoing:
         r.status = ReservationStatus.ongoing
+    
+    # Ongoing to finished
     for r in to_finished:
         r.status = ReservationStatus.finished
 
+    # Commit changes to DB only if there are
     if booked_to_ongoing or to_finished:
         db.session.commit()
-        app.logger.info("✅ %d updated: %d → ongoing, %d → finished",
-                        len(booked_to_ongoing) + len(to_finished),
-                        len(booked_to_ongoing), len(to_finished))
-    else:
-        app.logger.info("✅ No status changes needed.")

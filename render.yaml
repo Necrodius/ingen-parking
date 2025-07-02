@@ -1,7 +1,7 @@
 # render.yaml – Ingenuity Smart Parking (monorepo)
 
 services:
-  # ───────────── BACKEND – Flask API (Docker) ─────────────
+  # ---------- BACKEND DOCKERIZED ----------
   - type: web
     name: ingen-parking-backend
     runtime: docker
@@ -37,7 +37,7 @@ services:
       - key: PORT
         value: 8000
 
-  # ───────────── FRONTEND – Vite / React static site ─────────────
+  # ---------- FRONTEND STATIC SITE ----------
   - type: web
     name: ingen-parking-frontend
     runtime: static

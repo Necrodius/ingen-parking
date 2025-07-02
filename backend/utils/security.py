@@ -7,6 +7,7 @@ from flask import jsonify
 from flask_jwt_extended import verify_jwt_in_request, get_jwt
 from models.user import UserRole
 
+# Decorator to indicate if role is required
 def role_required(role: UserRole):
     def wrapper(fn):
         @wraps(fn)
@@ -19,11 +20,14 @@ def role_required(role: UserRole):
         return inner
     return wrapper
 
+# Encrypt password
 def hash_password(raw: str) -> str:
     return bcrypt.hashpw(raw.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
+# Verify password without decrypting
 def verify_password(raw: str, hashed: str) -> bool:
     return bcrypt.checkpw(raw.encode("utf-8"), hashed.encode("utf-8"))
 
+# Emails small caps
 def normalize_email(email: str) -> str:
     return email.strip().lower()

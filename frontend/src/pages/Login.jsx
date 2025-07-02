@@ -1,14 +1,13 @@
-// src/pages/Login.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useApi } from '../utils/api';        // 👈 adjust path if api.js lives elsewhere
+import { useApi } from '../utils/api';
 import toast from 'react-hot-toast';
 
 export default function Login() {
   const navigate  = useNavigate();
   const { login } = useAuth();
-  const api       = useApi();              // 👈 wrapper gives get/post/put/del helpers
+  const api       = useApi();
 
   /* ui mode: 'login' or 'register' */
   const [mode, setMode] = useState('login');

@@ -9,15 +9,18 @@ class RegisterSchema(Schema):
         required=True,
         error_messages={"required": "Email is required."}
     )
+
     password = fields.String(
         required=True,
         load_only=True,
         error_messages={"required": "Password is required."}
     )
+
     first_name = fields.String(
         required=True,
         error_messages={"required": "First name is required."}
     )
+    
     last_name = fields.String(
         required=True,
         error_messages={"required": "Last name is required."}

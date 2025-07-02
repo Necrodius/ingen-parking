@@ -1,28 +1,19 @@
-// src/pages/AdminUsers.jsx
-/*
-  🛡️  Admin Users – themed, responsive, collapsible
-  ———————————————————————————————————————————————————
-  • Matches dashboard glass / gradient aesthetic
-  • Table on ≥ md; accordion list on mobile
-  • Grain overlay, invisible scrollbars
-  • New‑admin & detail modals styled to match app
-*/
-
 import { useEffect, useState } from 'react';
 import { useApi } from '../utils/api';
 import toast from 'react-hot-toast';
 import { useNotifications } from '../context/NotificationContext';
 
 export default function AdminUsers() {
-  const api          = useApi();
-  const { notify }   = useNotifications();
+  const api        = useApi();
+  const { notify } = useNotifications();
 
   const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
-  const [detail,  setDetail]  = useState(null);  // user obj
-  const [create,  setCreate]  = useState(false); // show modal
+  const [detail,  setDetail]  = useState(null);   // user obj
+  const [create,  setCreate]  = useState(false);  // show modal
 
+  /* ───────── fetch users ───────── */
   const loadUsers = () =>
     api.get('/users/')
        .then(r => setUsers(r.users))
@@ -31,32 +22,25 @@ export default function AdminUsers() {
 
   useEffect(() => { loadUsers(); }, [api]);
 
-  /* helpers */
-  const toggleActive = (u) =>
+  /* ───────── helpers ───────── */
+  const toggleActive = u =>
     api.put(`/users/${u.id}`, { active: !u.active })
        .then(() => { notify(`${u.email} ${u.active ? 'deactivated' : 'activated'}`); loadUsers(); })
        .catch(e   => toast.error(e.message));
 
-  const promote = (u) =>
+  const promote = u =>
     api.put(`/users/${u.id}`, { role: 'admin' })
        .then(() => { notify(`${u.email} promoted to admin`); loadUsers(); })
        .catch(e   => toast.error(e.message));
 
-  /* UI states */
+  /* ───────── UI states ───────── */
   if (loading) return <p className="p-4 text-white">Loading…</p>;
   if (error)   return <p className="p-4 text-red-300">{error}</p>;
 
-  /* common style */
-  const noBar = { scrollbarWidth: 'none', msOverflowStyle: 'none' };
-
   return (
-    <main className="relative min-h-[calc(100vh-6rem)] flex flex-col gap-8
-                     bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700
-                     text-white overflow-hidden p-6">
-
-      {/* grain */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay
-                      bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZmZmIi8+PC9zdmc+')]" />
+    <main className="relative min-h-[calc(100vh-6rem)] flex flex-col gap-8 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white overflow-hidden p-6">
+      {/* grain overlay */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZmZmIi8+PC9zdmc+')]" />
 
       <section className="relative z-10 space-y-8 max-w-6xl w-full mx-auto">
 
@@ -65,7 +49,8 @@ export default function AdminUsers() {
           <h1 className="text-4xl font-extrabold drop-shadow">User Management</h1>
           <button
             onClick={() => setCreate(true)}
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-lg transition">
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 shadow-lg transition"
+          >
             ➕ <span className="hidden sm:inline">New Admin</span>
           </button>
         </div>
@@ -74,7 +59,7 @@ export default function AdminUsers() {
         <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6">
 
           {/* desktop table */}
-          <div className="hidden md:block max-h-[60vh] overflow-y-auto pr-1" style={noBar}>
+          <div className="hidden md:block max-h-[60vh] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <table className="min-w-full text-sm text-white/90">
               <thead className="sticky top-0 bg-white/10">
                 <tr>
@@ -87,7 +72,7 @@ export default function AdminUsers() {
               </thead>
               <tbody>
                 {users.map(u => (
-                  <tr key={u.id} className="border-t border-white/20">
+                  <tr key={u.id} className="border-t border-white/20 odd:bg-white/20 even:bg-white/30 hover:bg-white/40">
                     <td className="px-3 py-2">{u.email}</td>
                     <td className="px-3 py-2">{u.first_name} {u.last_name}</td>
                     <td className="px-3 py-2 text-center">{u.role}</td>
@@ -114,7 +99,7 @@ export default function AdminUsers() {
           </div>
 
           {/* mobile accordion */}
-          <ul className="md:hidden space-y-3 max-h-[60vh] overflow-y-auto pr-1" style={noBar}>
+          <ul className="md:hidden space-y-3 max-h-[60vh] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {users.map(u => (
               <li key={u.id} className="border border-white/20 rounded-lg p-3 bg-white/5">
                 <details>
@@ -177,9 +162,10 @@ function UserDetailModal({ user, onClose }) {
 
 /* ───────── CreateAdminModal ───────── */
 function CreateAdminModal({ onClose, onSaved }) {
-  const api = useApi();
+  const api        = useApi();
   const { notify } = useNotifications();
-  const [form, setForm] = useState({ email:'', password:'', first_name:'', last_name:'' });
+
+  const [form,   setForm]   = useState({ email:'', password:'', first_name:'', last_name:'' });
   const [saving, setSaving] = useState(false);
 
   const handleSave = () => {
@@ -187,7 +173,7 @@ function CreateAdminModal({ onClose, onSaved }) {
     setSaving(true);
     api.post('/users/', { ...form, role: 'admin' })
        .then(() => { notify('Admin account created'); onSaved(); onClose(); })
-       .catch(e => toast.error(e.message))
+       .catch(e  => toast.error(e.message))
        .finally(() => setSaving(false));
   };
 

@@ -1,29 +1,8 @@
-/**
- * AuthContext
- *
- * Provides global authentication state and helpers:
- * - Persists the JWT in localStorage for page refresh survival.
- * - Exposes `user` (decoded payload), `token`, `login`, and `logout`.
- * - Automatically logs the user out when the token expires.
- *
- * Usage:
- *   <AuthProvider> …children… </AuthProvider>
- *   const { user, login, logout } = useAuth();
- */
-
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 const AuthCtx = createContext(null);
 
-/* ------------------------------------------------------------------ */
-/*  Utility: decode a JWT payload (base64url → JSON)                  */
-/* ------------------------------------------------------------------ */
+/*  Utility: decode a JWT payload */
 function decodeJwt(token) {
   if (!token) return null;
 
@@ -38,17 +17,15 @@ function decodeJwt(token) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Context Provider                                                  */
-/* ------------------------------------------------------------------ */
+/*  Context Provider */
 export function AuthProvider({ children }) {
-  /* Step 1:  Re‑hydrate existing token from localStorage (runs once) */
+  /* Re‑hydrate existing token from localStorage */
   const [token, setToken] = useState(() => localStorage.getItem('token'));
 
-  /* Step 2:  Derive `user` object from token; memoised for efficiency */
+  /* Derive and moise `user` object from token */
   const user = useMemo(() => decodeJwt(token), [token]);
 
-  /* Step 3:  Helpers for login / logout that keep localStorage in sync */
+  /* Helpers for login / logout that keep localStorage in sync */
   const login = (newToken) => {
     setToken(newToken);
     localStorage.setItem('token', newToken);
@@ -59,7 +36,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token');
   };
 
-  /* Step 4:  Auto‑logout once the token’s `exp` time is reached */
+  /* Auto‑logout once the token’s `exp` time is reached */
   useEffect(() => {
     // Guard: if token has no exp claim, skip scheduling
     if (!user?.exp) return;
@@ -77,7 +54,7 @@ export function AuthProvider({ children }) {
     return () => clearTimeout(timeout); // Clean up if token changes
   }, [user]); // Re‑run if `user` (i.e., token) changes
 
-  /* Step 5:  Delay rendering children until the auth state is initialised */
+  /* Delay rendering children until the auth state is initialised */
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
@@ -88,7 +65,5 @@ export function AuthProvider({ children }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Convenience hook                                                  */
-/* ------------------------------------------------------------------ */
+/*  Convenience hook */
 export const useAuth = () => useContext(AuthCtx);

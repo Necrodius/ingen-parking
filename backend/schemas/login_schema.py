@@ -8,6 +8,7 @@ class LoginSchema(Schema):
         required=True,
         error_messages={"required": "Email is required."}
     )
+    
     password = fields.String(
         required=True,
         load_only=True,

@@ -1,22 +1,3 @@
-// src/pages/Dashboard.jsx
-/*  🖥️  Admin Dashboard – v10
-    Layout sketch
-      x = Reservation chart
-      y = Slot‑availability per location
-      z = Active‑reservations list
-
-      ┌───────────────┬───────────────┐
-      │      x        │      y        │   (≥ 1280 px → 2‑col)
-      └───────────────┴───────────────┘
-      ┌───────────────────────────────┐
-      │              z                │
-      └───────────────────────────────┘
-
-    • Chart + Slot report share a grid row (xl:grid‑cols‑2)
-    • List always takes full width, stacks below
-    • KPI cards intact
-*/
-
 import { useEffect, useState, useMemo } from 'react';
 import { useApi } from '../utils/api';
 import toast from 'react-hot-toast';
@@ -27,7 +8,7 @@ import {
 import { localInputToIso, isoToLocalInput } from '../utils/datetime';
 
 export default function Dashboard() {
-  const api = useApi();
+  const api        = useApi();
   const { notify } = useNotifications();
 
   /* ───────── State ───────── */
@@ -41,7 +22,7 @@ export default function Dashboard() {
   const [from, setFrom] = useState(() => isoToLocalInput(new Date().toISOString()));
   const [to,   setTo]   = useState(() => isoToLocalInput(new Date(Date.now() + 86_400_000).toISOString()));
 
-  /* ───────── Helpers (refresh, flash, etc.) ───────── */
+  /* ───────── Helpers ───────── */
   const refreshList = () =>
     api.get('/reservation/reservations')
        .then(({ reservations }) => setAdminData(p => (p ? { ...p, reservations } : p)))
@@ -76,10 +57,10 @@ export default function Dashboard() {
           chart, reservations, slots, locations, users,
         ] = await Promise.all([
           api.get(`/reports/reservations-per-day?days=${range}`).then(r => r.data),
-          api.get('/reservation/reservations').then(r => r.reservations),
-          api.get('/parking_slot/slots').then(r         => r.slots),
-          api.get('/parking_location/locations').then(r => r.locations),
-          api.get('/users/').then(r                       => r.users),
+          api.get('/reservation/reservations').then(r            => r.reservations),
+          api.get('/parking_slot/slots').then(r                  => r.slots),
+          api.get('/parking_location/locations').then(r          => r.locations),
+          api.get('/users/').then(r                              => r.users),
         ]);
 
         const slotMap     = Object.fromEntries(slots.map(s     => [s.id, s]));
@@ -133,25 +114,19 @@ export default function Dashboard() {
   /* misc helpers */
   const statusChip = st => {
     const cls = {
-      booked:'bg-yellow-400 text-yellow-900',
-      ongoing:'bg-green-400 text-green-900',
-      completed:'bg-gray-400 text-gray-900',
-      cancelled:'bg-red-400 text-red-900',
+      booked   :'bg-yellow-400 text-yellow-900',
+      ongoing  :'bg-green-400 text-green-900',
+      completed:'bg-gray-400  text-gray-900',
+      cancelled:'bg-red-400   text-red-900',
     }[st]||'bg-gray-400 text-gray-900';
     return <span className={`px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>{st}</span>;
   };
 
-  const noBar = { scrollbarWidth:'none', msOverflowStyle:'none' };
-
   /* ───────── UI ───────── */
   return (
-    <main className="relative min-h-[calc(100vh-6rem)] flex flex-col gap-8
-                     bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700
-                     text-white overflow-hidden p-6">
-
+    <main className="relative min-h-[calc(100vh-6rem)] flex flex-col gap-8 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white overflow-hidden p-6">
       {/* grain overlay */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay
-                      bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZmZmIi8+PC9zdmc+')]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZmZmIi8+PC9zdmc+')]" />
 
       <h1 className="relative z-10 text-4xl font-extrabold drop-shadow-lg">Admin Dashboard</h1>
 
@@ -174,7 +149,6 @@ export default function Dashboard() {
 
         {/* ───── Row (chart | slot availability) ───── */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-
           {/* Reservations chart */}
           <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6">
             <div className="flex flex-wrap sm:flex-nowrap sm:items-end sm:justify-between gap-4 mb-4">
@@ -199,11 +173,7 @@ export default function Dashboard() {
           {/* Slot availability */}
           <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6">
             <div className="flex flex-wrap lg:flex-nowrap gap-4 mb-4">
-              <div className="flex-1">
-                <h2 className="text-xl font-bold">
-                  Slot Availability&nbsp;
-                </h2>
-              </div>
+              <h2 className="flex-1 text-xl font-bold">Slot Availability</h2>
               <div className="grid grid-cols-2 gap-2 text-xs w-full sm:w-auto">
                 <label className="flex flex-col">
                   From
@@ -221,7 +191,7 @@ export default function Dashboard() {
             </div>
 
             {availability.length ? (
-              <ul className="space-y-4 max-h-[40vh] overflow-y-auto pr-1" style={noBar}>
+              <ul className="space-y-4 max-h-[40vh] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {availability.map(({id,name,bookable,blocked,total})=>{
                   const pct=total?bookable/total*100:0;
                   const color=bookable?'bg-green-500':'bg-red-500';
@@ -243,16 +213,15 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ───── Active reservations list (full width) ───── */}
+        {/* ───── Active reservations list ───── */}
         <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6">
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-xl font-bold">Active Reservations</h2>
-            <button onClick={refreshList}
-                    className="p-2 rounded bg-white/20 hover:bg-white/30" title="Refresh list">🔄</button>
+            <button onClick={refreshList} className="p-2 rounded bg-white/20 hover:bg-white/30" title="Refresh list">🔄</button>
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block max-h-[45vh] overflow-y-auto pr-1" style={noBar}>
+          <div className="hidden md:block max-h-[45vh] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <table className="min-w-full text-sm text-white/90">
               <thead className="bg-white/10 sticky top-0">
                 <tr>
@@ -277,10 +246,10 @@ export default function Dashboard() {
                       <td className="px-3 py-2">{new Date(r.end_ts).toLocaleString('en-PH')}</td>
                       <td className="px-3 py-2">{statusChip(st)}</td>
                       <td className="px-3 py-2 flex gap-2">
-                        {st==='booked'   && <button onClick={()=>cancel(r.id)} className="p-1.5 bg-yellow-500 hover:bg-yellow-600 rounded">❌</button>}
-                        {st==='ongoing'  && <button onClick={()=>finish(r.id)} className="p-1.5 bg-green-600  hover:bg-green-700  rounded">✔️</button>}
+                        {st==='booked'  && <button onClick={()=>cancel(r.id)}  className="p-1.5 bg-yellow-500 hover:bg-yellow-600 rounded">❌</button>}
+                        {st==='ongoing' && <button onClick={()=>finish(r.id)} className="p-1.5 bg-green-600  hover:bg-green-700  rounded">✔️</button>}
                         <button onClick={()=>setEdit({...r})} className="p-1.5 bg-blue-600  hover:bg-blue-700  rounded">✏️</button>
-                        <button onClick={()=>remove(r.id)}  className="p-1.5 bg-red-600   hover:bg-red-700   rounded">🗑️</button>
+                        <button onClick={()=>remove(r.id)}   className="p-1.5 bg-red-600   hover:bg-red-700   rounded">🗑️</button>
                       </td>
                     </tr>
                   );
@@ -290,7 +259,7 @@ export default function Dashboard() {
           </div>
 
           {/* Mobile list */}
-          <ul className="md:hidden space-y-3 max-h-[45vh] overflow-y-auto pr-1" style={noBar}>
+          <ul className="md:hidden space-y-3 max-h-[45vh] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {active.map(r=>{
               const st=r.status.split('.').pop();
               const slot=adminData.slotMap[r.slot_id]||{};

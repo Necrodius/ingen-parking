@@ -1,4 +1,3 @@
-# src/routes/auth_routes.py
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token
 from marshmallow import ValidationError
@@ -28,7 +27,6 @@ def register_user():
     except ValueError as dup:
         return jsonify({"error": str(dup)}), 409
 
-
 # ---------- LOGIN ----------
 @auth_bp.post("/login")
 def login_user():
@@ -43,7 +41,7 @@ def login_user():
         if not user:
             return jsonify({"error": "Invalid credentials"}), 401
 
-        # Block de‑activated accounts
+        # Block deactivated accounts
         if not user.active:
             return jsonify({"error": "Account disabled. Contact an administrator."}), 403
 

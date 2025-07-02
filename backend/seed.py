@@ -1,41 +1,22 @@
-"""
-Idempotent database seeder for Ingenuity Smart Parking.
-
-💡 Safe to execute repeatedly:
-   * Never drops tables
-   * Adds only missing records
-   * Skips reservations if any already exist
-
-Run locally:
-    python seed.py
-"""
+# Seed script for database
 
 from datetime import datetime, timedelta, timezone
-
 from app import create_app
 from extensions import db
-
-# ─── Services (for validation / hashing) ───────────────────
 from services.user_service import UserService
 from services.parking_location_service import ParkingLocationService
 from services.parking_slot_service import ParkingSlotService
 from services.reservation_service import ReservationService
-
-# ─── Models (for raw queries where no service helper exists) ──────────
 from models.user import User, UserRole
 from models.parking_location import ParkingLocation
 from models.parking_slot import ParkingSlot
 from models.reservation import Reservation, ReservationStatus
 
-# ───────────────────────────────────────────────────────────
-# Config – tweak for a bigger/smaller demo dataset
-# ───────────────────────────────────────────────────────────
+# Config  (tweak for a bigger/smaller demo dataset)
 DRIVERS_PER_LOCATION = 4   # 4 × 13 locations = 52 drivers
 SLOTS_PER_LOCATION   = 20
 
-# ───────────────────────────────────────────────────────────
 # Static demo data
-# ───────────────────────────────────────────────────────────
 ADMIN_USERS = [
     {"email": "admin@sample.com", "password": "adminpw", "first_name": "Alice",  "last_name": "Admin", "role": UserRole.admin},
     {"email": "boss@sample.com",  "password": "superpw", "first_name": "Carlos", "last_name": "Boss",  "role": UserRole.admin},
@@ -57,17 +38,16 @@ DAVAO_LOCS = [
     {"name": "Matina Town Square Open Lot",      "address": "Matina, Davao City", "lat": 7.0655, "lng": 125.6087},
 ]
 
-# ───────────────────────────────────────────────────────────
-# Helper functions
-# ───────────────────────────────────────────────────────────
+# ---------- HELPERS ----------
+
+# Create admin users if not present
 def ensure_admins() -> None:
-    """Create missing admin users."""
     for data in ADMIN_USERS:
         if not User.query.filter_by(email=data["email"]).first():
             UserService.create_user(**data)
 
+# Create locations if not present then return all location objects
 def ensure_locations() -> list[ParkingLocation]:
-    """Create locations if absent; return all location objects."""
     locs: list[ParkingLocation] = []
     for loc_data in DAVAO_LOCS:
         loc = ParkingLocation.query.filter_by(name=loc_data["name"]).first()
@@ -79,8 +59,8 @@ def ensure_locations() -> list[ParkingLocation]:
         locs.append(loc)
     return locs
 
+# Ensure each location has slots then return all slots
 def ensure_slots(locs: list[ParkingLocation]) -> list[ParkingSlot]:
-    """Ensure each location has SLOTS_PER_LOCATION slots; return all slots."""
     all_slots: list[ParkingSlot] = []
     for loc in locs:
         existing_labels = {s.slot_label for s in loc.slots}
@@ -92,8 +72,8 @@ def ensure_slots(locs: list[ParkingLocation]) -> list[ParkingSlot]:
         all_slots.extend(loc.slots)
     return all_slots
 
+# Create drivers then return all drivers
 def ensure_drivers(total_needed: int) -> list[User]:
-    """Create enough drivers to reach total_needed; return all drivers."""
     drivers: list[User] = list(User.query.filter_by(role=UserRole.user))
     next_idx = len(drivers) + 1
     while len(drivers) < total_needed:
@@ -110,10 +90,9 @@ def ensure_drivers(total_needed: int) -> list[User]:
         next_idx += 1
     return drivers
 
+# Insert reservations only if the table is empty
 def seed_reservations(drivers: list[User], slots: list[ParkingSlot]) -> None:
-    """Insert demo reservations only if the table is empty."""
     if db.session.query(Reservation).count() > 0:
-        print("Reservations already exist – skipping reservation seed.")
         return
 
     now = datetime.now(timezone.utc)
@@ -158,26 +137,23 @@ def seed_reservations(drivers: list[User], slots: list[ParkingSlot]) -> None:
             status  =ReservationStatus.cancelled,
         )
 
-# ───────────────────────────────────────────────────────────
-# Main entry
-# ───────────────────────────────────────────────────────────
+# ---------- MAIN ----------
 def seed() -> None:
-    """Run all seeding steps inside the Flask app context."""
     app = create_app()
     with app.app_context():
-        # 1️⃣ Ensure schema exists
+        # Ensure schema exists
         db.create_all()
 
-        # 2️⃣ Seed core reference data
+        # Seed core data
         ensure_admins()
         locations = ensure_locations()
         slots     = ensure_slots(locations)
         drivers   = ensure_drivers(DRIVERS_PER_LOCATION * len(locations))
 
-        # 3️⃣ Seed demo reservations
+        # Seed reservations
         seed_reservations(drivers, slots)
 
-        print("✅ Database seeded (idempotent run)")
+        print("Database idempotently seeded")
 
 if __name__ == "__main__":
     seed()

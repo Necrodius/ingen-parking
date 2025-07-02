@@ -1,12 +1,3 @@
-// src/pages/AdminLocations.jsx
-/*
-  🛠️  Admin Locations Map (CRUD, high‑contrast UI) – v2
-  ──────────────────────────────────────────────────────────────────────────
-  • Clicking a map pin now also scrolls/highlights its list item
-  • Modals/cards use dark slate background + white text for readability
-  • Inputs, buttons, and list items follow WCAG‑compliant contrast
-*/
-
 import { useEffect, useRef, useState } from 'react';
 import {
   MapContainer,
@@ -116,10 +107,11 @@ export default function AdminLocations() {
     return (
       <li
         key={loc.id}
-        ref={(el) => (liRefs.current[loc.id] = el)}          // 🔄 store ref
+        ref={(el) => (liRefs.current[loc.id] = el)}
         onClick={() => focusPin(loc)}
         className={`group flex items-center justify-between gap-4 p-4 cursor-pointer transition
-          ${active ? 'bg-white/25 ring-2 ring-yellow-400/70 shadow-inner' : 'hover:bg-white/10'}`}
+                    ${active ? 'bg-white/25 ring-2 ring-yellow-400/70 shadow-inner' : 'hover:bg-white/10'}
+                    odd:bg-white/[0.03]`}
       >
         <div>
           <p className="font-semibold text-white">{loc.name}</p>
@@ -130,12 +122,12 @@ export default function AdminLocations() {
           <div className="flex gap-2">
             <button
               onClick={(e) => { e.stopPropagation(); setSlots(loc); }}
-              className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700"
               title="Manage slots"
             >🗂️</button>
             <button
               onClick={(e) => { e.stopPropagation(); setModal({ mode: 'edit', data: loc }); }}
-              className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+              className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700"
               title="Edit location"
             >✏️</button>
             <button
@@ -146,7 +138,7 @@ export default function AdminLocations() {
                   .then(() => notify('Location deleted'))
                   .catch((err) => toast.error(err.message));
               }}
-              className="p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white"
+              className="p-1.5 rounded-lg bg-red-600 hover:bg-red-700"
               title="Delete location"
             >🗑️</button>
           </div>
@@ -159,7 +151,7 @@ export default function AdminLocations() {
   return (
     <main className="relative min-h-[calc(100vh-6rem)] flex flex-col gap-8 bg-gradient-to-br from-blue-700 via-indigo-800 to-purple-800 text-white overflow-hidden p-6">
       {/* noise overlay */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBmaWxsPSIjZGRkIiByPSIxIiBjeD0iMTIiIGN5PSI2Ii8+PGNpcmNsZSBmaWxsPSIjZGRkIiByPSIxIiBjeD0iMjQiIGN5PSIyMCIvPjxjaXJjbGUgZmlsbD0iI2RkZCIgcj0iMSIgY3g9IjQ1IiBjeT0iMzUiLz48L3N2Zz4=')]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBmaWxsPSIjZGRkIiByPSIxIiBjeD0iMTIiIGN5PSI2Ii8+PGNpcmNsZSBmaWxsPSIjZGRkIiByPSIxIiBjeD0iMjQiIGN5PSIyMCIvPjxjaXJjbGUgZmlsbD0iI2RkZCIgcj0iMSIgY3g9IjQ1IiBjeT0iMzUiLz48L3N2Zz4=')" />
 
       <h1 className="relative z-10 text-4xl sm:text-5xl font-extrabold drop-shadow-md">
         Manage Parking Locations
@@ -167,7 +159,7 @@ export default function AdminLocations() {
 
       <div className="relative z-10 flex flex-col md:flex-row gap-6">
         {/* Map card */}
-        <div className={`flex-1 backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl overflow-hidden shrink-0 ${addMode ? 'cursor-crosshair' : ''}`}>
+        <div className={`flex-1 backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl overflow-hidden shrink-0 ${addMode && 'cursor-crosshair'}`}>
           <MapContainer
             center={[7.19, 125.46]}
             zoom={13}
@@ -201,13 +193,13 @@ export default function AdminLocations() {
         </div>
 
         {/* Scrollable list */}
-        <aside className="md:w-80 h-[70vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl shrink-0">
+        <aside className="md:w-80 h-[70vh] overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl shadow-2xl shrink-0">
           {/* header */}
           <div className="sticky top-0 z-10 px-4 py-3 flex justify-between items-center bg-gradient-to-r from-blue-700 via-indigo-800 to-purple-800 rounded-t-3xl">
             <h2 className="font-semibold">All Locations</h2>
             <button
               onClick={() => { setSel(null); setAdd(true); toast('Click the map to place the new location'); }}
-              className="p-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white"
+              className="p-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110"
               title="Add new location (click map after)"
             >➕</button>
           </div>
@@ -252,7 +244,7 @@ function LocationModal({ initial, onClose, onSave, notify }) {
   const isEdit = Boolean(initial.id);
 
   const handleSave = () => {
-    if (!form.name.trim())               return toast.error('Name is required');
+    if (!form.name.trim())                 return toast.error('Name is required');
     if (form.lat === '' || form.lng === '') return toast.error('Lat/Lng required');
     setSaving(true);
     onSave(form, initial.id)
@@ -296,10 +288,10 @@ function LocationModal({ initial, onClose, onSave, notify }) {
 
 /* ───────── SlotManagerModal ───────── */
 function SlotManagerModal({ location, onClose, notify }) {
-  const api                          = useApi();
-  const [slots, setSlots]            = useState([]);
-  const [label, setLabel]            = useState('');
-  const [loading, setLoading]        = useState(true);
+  const api                   = useApi();
+  const [slots, setSlots]     = useState([]);
+  const [label, setLabel]     = useState('');
+  const [loading, setLoading] = useState(true);
 
   const loadSlots = () =>
     api.get(`/parking_slot/slots?location_id=${location.id}`)

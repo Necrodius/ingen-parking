@@ -1,12 +1,3 @@
-// src/pages/Locations.jsx
-/*
-  🗺️  Parking Locations Map (Davao City)
-  --------------------------------------------------------------------
-  • Click pin → flyTo + highlight list item (no redirect)
-  • List click still flyTo + highlight, arrow still opens booking
-  --------------------------------------------------------------------
-*/
-
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -125,7 +116,7 @@ export default function Locations() {
                 key={loc.id}
                 position={[loc.lat, loc.lng]}
                 eventHandlers={{
-                  click: () => focusPin(loc),              // ← changed behaviour
+                  click: () => focusPin(loc),
                 }}
               >
                 <Tooltip direction="top" offset={[0, -28]} opacity={0.9}>

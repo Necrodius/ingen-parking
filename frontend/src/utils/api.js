@@ -1,26 +1,17 @@
-/* ------------------------------------------------------------------
-   api.js
-   Tiny fetch wrapper that automatically adds JWT headers and works
-   in dev (*relative /api*) and prod (full Render URL).
--------------------------------------------------------------------*/
+/* Fetch wrapper that adds JWT headers */
 
 import { useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 
-/* 🔑 1. Pick API base URL
-      • In production Render injects VITE_BACKEND_URL.
-      • Locally we fall back to '/api' so Vite dev‑server proxy works. */
 const BASE = import.meta.env.VITE_BACKEND_URL;
 
-/* ---------------------------------------------------------- */
-/*  Centralised fetch error handler                           */
-/* ---------------------------------------------------------- */
+/* Centralised fetch error handler */
 async function handleResponse(res) {
   const contentType = res.headers.get('content-type') || '';
   const isJson = contentType.includes('application/json');
 
   if (!res.ok) {
-    // Try to read server‑provided error
+    /* Try to read server‑provided error */
     const body = isJson ? await res.json().catch(() => null)
                         : await res.text();
     const message =
@@ -35,30 +26,25 @@ async function handleResponse(res) {
   return isJson ? res.json() : res.text();
 }
 
-/* ---------------------------------------------------------- */
-/*  `useApi` hook – stable client across re‑renders           */
-/* ---------------------------------------------------------- */
+/* useApi hook */
 export const useApi = () => {
-  const { token } = useAuth();           // JWT from context
+  const { token } = useAuth();
 
-  /* `useMemo` ensures we return the same client object
-     until the JWT token actually changes. */
+  /* ensures we return the same client object until the JWT token changes */
   return useMemo(() => {
     const commonHeaders = {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
-    // Helper to assemble fetch options
+    /* Helper to assemble fetch options */
     const opts = (method, body) => ({
       method,
       headers: commonHeaders,
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
 
-    /* Expose the four common verbs.
-       1st arg: endpoint path (e.g. '/auth/login')
-       2nd arg: JSON body (POST/PUT only) */
+    /* Expose get, post, put, del */
     return {
       get:  (url)        => fetch(`${BASE}${url}`, opts('GET'))
                              .then(handleResponse),
@@ -69,5 +55,5 @@ export const useApi = () => {
       del:  (url)        => fetch(`${BASE}${url}`, opts('DELETE'))
                              .then(handleResponse),
     };
-  }, [token]); // ← Recreates client only when JWT token changes
+  }, [token]); // Recreates client only when JWT token changes
 };

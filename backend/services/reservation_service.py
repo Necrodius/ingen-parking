@@ -1,26 +1,21 @@
-# services/reservation_service.py
-# ────────────────────────────────────────────────────────────────────────────
+# This file defines the ReservationService class, which provides methods for managing reservations.
+# It includes methods for creating, reading, updating, and deleting reservations.
+
 from datetime import datetime, timezone
 from typing import List
-
 from extensions import db
 from models.reservation import Reservation, ReservationStatus
 from models.parking_slot import ParkingSlot
 from sqlalchemy.orm import load_only
 from sqlalchemy.exc import NoResultFound
 
-
 class ReservationService:
-    """Business logic & DB persistence for reservations."""
 
-    # ---------- HELPER: Keep slot’s reservations up‑to‑date ----------
+    # ---------- HELPER ----------
+
+    # Update slot status when called (same functionality with .utls.status_scheduler.py)
     @staticmethod
     def refresh_slot_statuses(slot_id: int) -> None:
-        """
-        Promote a slot’s reservations:
-            booked  → ongoing   (when start_ts ≤ now)
-            ongoing → finished  (when end_ts   ≤ now)
-        """
         now = datetime.now(timezone.utc)
 
         booked   = (
@@ -53,8 +48,7 @@ class ReservationService:
     # ---------- CREATE ----------
     @staticmethod
     def create(**data) -> Reservation:
-        """Validate + persist a new reservation."""
-        # 1. Slot must exist & be free
+        # Slot must exist and be free
         slot = (
             ParkingSlot.query
             .options(load_only(ParkingSlot.id, ParkingSlot.is_available))
@@ -66,10 +60,10 @@ class ReservationService:
         if not slot.is_available:
             raise ValueError("Slot is already marked occupied")
 
-        # 2. Make sure previous reservations are up‑to‑date
+        # Make sure previous reservations are up‑to‑date
         ReservationService.refresh_slot_statuses(data["slot_id"])
 
-        # 3. No overlap with existing booked / ongoing
+        # No overlap with existing booked / ongoing
         overlap = (
             Reservation.query
             .filter(
@@ -85,7 +79,7 @@ class ReservationService:
         if overlap:
             raise ValueError("Slot already booked for this time")
 
-        # 4. Persist
+        # Write to DB
         res = Reservation(**data)
         db.session.add(res)
         db.session.commit()
@@ -119,15 +113,14 @@ class ReservationService:
     # ---------- UPDATE ----------
     @staticmethod
     def update(res: Reservation, **changes) -> Reservation:
-        """Edit a reservation (times and/or slot)."""
         new_start = changes.get("start_ts", res.start_ts)
         new_end   = changes.get("end_ts",   res.end_ts)
         new_slot  = changes.get("slot_id",  res.slot_id)
 
         if new_start >= new_end:
-            raise ValueError("start_ts must be before end_ts")
+            raise ValueError("Start time must be before end time")
 
-        # Make sure other reservations are in the right state
+        # Make sure reservations are in the right state
         ReservationService.refresh_slot_statuses(new_slot)
 
         overlap = (
@@ -169,12 +162,10 @@ class ReservationService:
         return res
 
     # ---------- FINISH ----------
+    # Update ongoing reservation to finished and stamp the actual end time.
     @staticmethod
     def finish(res: Reservation) -> Reservation:
-        """
-        Mark an *ongoing* reservation as finished and stamp the
-        actual end time. Raises ValueError if it isn’t ongoing.
-        """
+
         ReservationService.refresh_slot_statuses(res.slot_id)
 
         if res.status != ReservationStatus.ongoing:

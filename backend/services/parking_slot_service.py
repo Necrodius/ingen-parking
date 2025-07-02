@@ -1,5 +1,5 @@
 # This file defines the ParkingSlotService class, which provides methods for managing parking slots in a parking system.
-# It includes methods for creating, reading, updating, and deleting parking slots,
+# It includes methods for creating, reading, updating, and deleting parking slots.
 
 from typing import List, Optional
 from sqlalchemy.exc import NoResultFound

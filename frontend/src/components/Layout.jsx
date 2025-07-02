@@ -1,15 +1,8 @@
-// src/Layout.jsx
-
 import { Outlet, useLocation } from 'react-router-dom';  // `useLocation` provides access to the current URL path
 import { Toaster } from 'react-hot-toast';               // Toast notification system
 import Nav from './Nav';                                 // Shared navigation bar across all pages
 
-/**
- * Layout component
- * - Wraps all pages with common UI elements like the navigation bar and toast notifications.
- * - Uses React Router's <Outlet> to render the current route's component.
- * - Applies different layout widths depending on the route (full width for home, max-width for others).
- */
+/* Wraps all pages with common UI elements */
 export default function Layout() {
   const { pathname } = useLocation(); // Destructure current URL path
   const isHome = pathname === '/';    // Determine if the current page is the Home page

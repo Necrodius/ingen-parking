@@ -3,16 +3,6 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 
-/**
- * Navigation bar component
- * 
- * Provides:
- * - Responsive navigation menu for both desktop and mobile.
- * - Role-based links for users and admins.
- * - Admin toggle to "view as user".
- * - Notification dropdown with unread count.
- * - Profile menu with logout and profile view.
- */
 export default function Nav() {
   // Access authentication state and logout function
   const { user, logout } = useAuth();
@@ -22,10 +12,7 @@ export default function Nav() {
 
   const navigate = useNavigate();
 
-  /** 
-   * Admin-only: Toggle between Admin and "View as User" mode
-   * State is persisted in localStorage across page reloads
-   */
+  /* Admin-only: Toggle between Admin and "View as User" mode */
   const [asUser, setAsUser] = useState(() => localStorage.getItem('sp_asUser') === 'true');
 
   useEffect(() => {
@@ -39,19 +26,14 @@ export default function Nav() {
     window.location.href = '/'; // Reload to reflect mode change
   };
 
-  /** 
-   * Logout handler: clears state and navigates to login page
-   */
+  /* Logout handler: clears state and navigates to login page */
   const handleLogout = () => {
     localStorage.removeItem('sp_asUser');
     logout();
     navigate('/login');
   };
 
-  /**
-   * Hook: Closes a dropdown when clicking outside its ref
-   * Used for notifications and profile menus
-   */
+  /* Closes a dropdown when clicking outside its ref */
   const useClickOutside = (ref, setter) => {
     useEffect(() => {
       const handler = (e) => {

@@ -1,12 +1,3 @@
-// src/pages/Profile.jsx
-/*
-  🧑‍💼 Profile Page – Themed and Responsive
-  ————————————————————————————————————————————
-  • Loads user info via GET /users/me
-  • Allows editing name and password change
-  • Styled to match dashboard (blur, glass, contrast)
-*/
-
 import { useEffect, useState } from 'react';
 import { useApi } from '../utils/api';
 import toast from 'react-hot-toast';
