@@ -131,7 +131,7 @@ class TestReservationRoutes:
                          headers={"Authorization": f"Bearer {user_token}"})
         assert res.status_code == 200
         data = res.get_json()
-        assert data["reservation"]["status"] == "cancelled"
+        assert data["reservation"]["status"] == "ReservationStatus.cancelled"
 #    # TO FIX
 #    def test_update_reservation(self, client, user_token, make_location):
 #        loc = make_location(total_slots=2)
