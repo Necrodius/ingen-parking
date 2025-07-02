@@ -1,7 +1,4 @@
-# This Dockerfile sets up a Python environment for a Flask application using Gunicorn as the WSGI server.
-# It installs dependencies from a `requirements.txt` file, copies the application code into the container,
-# and exposes port 8000 for incoming traffic.
-
+# ── Python runtime ────────────────────────────────────────────────
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -9,8 +6,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Project code and entry‑point
 COPY . .
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8000
-
-CMD ["sh", "-c", "alembic upgrade head && python seed.py && gunicorn app:app --bind 0.0.0.0:${PORT:-8000}"]
+CMD ["/app/entrypoint.sh"]

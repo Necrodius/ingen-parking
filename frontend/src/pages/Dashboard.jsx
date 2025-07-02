@@ -202,7 +202,6 @@ export default function Dashboard() {
               <div className="flex-1">
                 <h2 className="text-xl font-bold">
                   Slot Availability&nbsp;
-                  <span className="text-sm font-normal text-white/70">(Bookable vs Blocked)</span>
                 </h2>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs w-full sm:w-auto">

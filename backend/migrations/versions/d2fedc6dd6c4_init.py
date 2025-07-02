@@ -1,8 +1,8 @@
 """init
 
-Revision ID: 9a5e184c104d
+Revision ID: d2fedc6dd6c4
 Revises: 
-Create Date: 2025-07-01 12:43:01.619058
+Create Date: 2025-07-02 00:20:17.596014
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '9a5e184c104d'
+revision: str = 'd2fedc6dd6c4'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -58,8 +58,8 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('slot_id', sa.Integer(), nullable=False),
-    sa.Column('start_ts', sa.DateTime(), nullable=False),
-    sa.Column('end_ts', sa.DateTime(), nullable=False),
+    sa.Column('start_ts', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('end_ts', sa.DateTime(timezone=True), nullable=False),
     sa.Column('status', sa.Enum('booked', 'ongoing', 'finished', 'cancelled', name='reservation_status'), server_default=sa.text("'booked'"), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),

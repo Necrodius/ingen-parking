@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from marshmallow import ValidationError
 from sqlalchemy.exc import NoResultFound
+from models.reservation import ReservationStatus
 from models.user import UserRole
 from schemas.reservation_schema import reservation_schema, reservations_schema
 from services.reservation_service import ReservationService
@@ -115,25 +116,24 @@ def cancel_reservation(reservation_id):
 @reservation_bp.post("/reservations/<int:reservation_id>/finish")
 @jwt_required()
 def finish_reservation(reservation_id):
+    """
+    Admins can finish any reservation; normal users can finish their own.
+    All persistence is handled by ReservationService.finish().
+    """
     try:
-        reservation = ReservationService.get(reservation_id)
-        user_id     = int(get_jwt_identity())
-        claims      = get_jwt()
+        res     = ReservationService.get(reservation_id)
+        user_id = int(get_jwt_identity())
+        claims  = get_jwt()
 
-        if claims.get("role") != UserRole.admin.value and reservation.user_id != user_id:
+        # ── ACL check ──────────────────────────────────────────────
+        if claims.get("role") != UserRole.admin.value and res.user_id != user_id:
             return jsonify({"error": "Unauthorized"}), 403
 
-        # Refresh statuses before attempting to finish
-        ReservationService.refresh_slot_statuses(reservation.slot_id)
+        # ── Delegate business logic ───────────────────────────────
+        finished = ReservationService.finish(res)
+        return jsonify({"reservation": reservation_schema.dump(finished)}), 200
 
-        if reservation.status != "ongoing":
-            return jsonify({"error": "Only ongoing reservations can be finished"}), 400
-
-        # Set status and actual end time
-        reservation.status = "completed"
-        reservation.end_ts = datetime.now(timezone.utc)
-        db.session.commit()
-
-        return jsonify({"reservation": reservation_schema.dump(reservation)}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
     except NoResultFound:
         return jsonify({"error": "Reservation not found"}), 404

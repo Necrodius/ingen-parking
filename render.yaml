@@ -1,28 +1,23 @@
-# render.yaml – Ingenuity Smart Parking  (monorepo)
+# render.yaml – Ingenuity Smart Parking (monorepo)
 
 services:
   # ───────────── BACKEND – Flask API (Docker) ─────────────
   - type: web
     name: ingen-parking-backend
-    runtime: docker                 # Use backend/Dockerfile
+    runtime: docker
     rootDir: backend
     plan: free
     autoDeploy: true
-    healthCheckPath: /api/health    # adjust if you renamed it
+    healthCheckPath: /api/health
     envVars:
-      # --- Project secrets (Generated at deploy time, NOT in git) ---
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: FLASK_ENV
         value: production
-
-      # --- CORS origins (for frontend) ---
       - key: FRONTEND_URL
         value: https://ingen-parking-frontend.onrender.com
-
-      # --- Database wiring (maps to Render Postgres below) ---
       - key: DATABASE_URL
         fromDatabase:
           name: ingen-parking-db
@@ -39,12 +34,10 @@ services:
         fromDatabase:
           name: ingen-parking-db
           property: database
-
-      # --- Optional: tell Gunicorn which port Render injected ---
       - key: PORT
-        value: 8000                  # matches Dockerfile’s EXPOSE
+        value: 8000
 
-  # ───────────── FRONTEND – Vite / React static site ─────────────
+  # ───────────── FRONTEND – Vite / React static site ─────────────
   - type: web
     name: ingen-parking-frontend
     runtime: static
@@ -54,11 +47,13 @@ services:
     envVars:
       - key: VITE_BACKEND_URL
         value: https://ingen-parking-backend.onrender.com/api
+    redirects:
+      - source: /*
+        destination: /index.html
+        status: 200
 
 databases:
-  # ───────────── POSTGRES ─────────────
   - name: ingen-parking-db
     plan: free
-    postgresMajorVersion: '15'       # matches local Docker Compose (15)
+    postgresMajorVersion: "15"
     databaseName: ingenparking
-    # Omit `password:` so Render generates a strong secret automatically
