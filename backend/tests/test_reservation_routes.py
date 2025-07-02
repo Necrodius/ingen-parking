@@ -1,46 +1,27 @@
-"""
-Illustrative flow: admin creates a location; user makes a reservation.
-"""
-
-import pytest
 from uuid import uuid4
 
-def test_user_can_create_and_get_reservation(client, admin_token, user_token):
-    # 1. Admin sets up a location
-    loc_payload = {
-        "name": f"Test-Garage-{uuid4()}",
-        "address": "A St",
-        "latitude": 0,
-        "longitude": 0,
-        "total_slots": 2,
-    }
-    admin_res = client.post(
-        "/api/parking_location/locations",
-        json=loc_payload,
-        headers={"Authorization": f"Bearer {admin_token}"},
-    )
-    assert admin_res.status_code == 201
-    loc_id = admin_res.get_json()["location"]["id"]
-
-    # 2. User books slot #1
+def test_user_reservation_flow(client, make_location, user_token):
+    # Admin sets up location + slots
+    loc = make_location(total_slots=5, prefix="ResvGarage")
+    # user reserves slot #1
     booking = {
-        "parking_location_id": loc_id,
+        "parking_location_id": loc["id"],
         "slot_number": 1,
         "start_time": "2030-01-01T00:00:00Z",
         "end_time": "2030-01-01T01:00:00Z",
     }
-    res = client.post(
+    res_create = client.post(
         "/api/reservation/reservations",
         json=booking,
         headers={"Authorization": f"Bearer {user_token}"},
     )
-    assert res.status_code == 201
-    reservation_id = res.get_json()["reservation"]["id"]
+    assert res_create.status_code == 201
+    res_id = res_create.get_json()["reservation"]["id"]
 
-    # 3. Fetch by ID should succeed
-    res2 = client.get(
-        f"/api/reservation/reservations/{reservation_id}",
+    # fetch should succeed
+    res_get = client.get(
+        f"/api/reservation/reservations/{res_id}",
         headers={"Authorization": f"Bearer {user_token}"},
     )
-    assert res2.status_code == 200
-    assert res2.get_json()["reservation"]["id"] == reservation_id
+    assert res_get.status_code == 200
+    assert res_get.get_json()["reservation"]["id"] == res_id

@@ -1,43 +1,74 @@
 """
-conftest.py – Shared Pytest fixtures for the Ingen‑Parking backend
-------------------------------------------------------------------
-• Spins up the Flask app in TESTING mode with an in‑memory SQLite DB.
-• Provides clean `client`, `registered_user`, `admin_user`,
-  and ready‑to‑use JWT fixtures (`user_token`, `admin_token`).
+conftest.py – central test helpers for Ingen‑Parking
+===================================================
+• Spins up the Flask app in TESTING mode with a RAM SQLite DB.
+• Provides ready‑to‑use fixtures:
+  ─ client           → Flask test‑client
+  ─ admin_user       → admin SQLA model
+  ─ registered_user  → normal user model
+  ─ admin_token      → JWT string for admin_user
+  ─ user_token       → JWT string for registered_user
+  ─ make_location    → helper to create a unique parking location
 """
 
-import pytest
-import bcrypt
+import pytest, bcrypt, time
 from uuid import uuid4
 from app import create_app, db
 from models.user import User, UserRole
 
+
 # ------------------------------------------------------------------ #
-# Config helpers
+# Helper utils
 # ------------------------------------------------------------------ #
-TEST_DB_URI = "sqlite:///:memory:"        # blazing‑fast disposable DB
+TEST_DB_URI = "sqlite:///:memory:"            # fast & disposable
 
 
-def _hash_password(plain: str) -> str:
-    """Return a bcrypt hash.  rounds=4 keeps CI snappy."""
+def _hash_pw(pwd: str) -> str:
+    """bcrypt with low cost rounds (CI‑friendly)."""
     return bcrypt.hashpw(
-        plain.encode("utf-8"),
-        bcrypt.gensalt(rounds=4),
-    ).decode("utf-8")
+        pwd.encode(),
+        bcrypt.gensalt(rounds=4)
+    ).decode()
+
+
+def _upsert_user(email: str, raw_pw: str, role: UserRole):
+    """Insert or replace a user to avoid UNIQUE conflicts."""
+    existing = User.query.filter_by(email=email).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+    user = User(
+        email=email,
+        password_hash=_hash_pw(raw_pw),
+        first_name=email.split("@")[0],
+        last_name="Test",
+        role=role,
+        is_active=True,
+    )
+    db.session.add(user)
+    db.session.commit()
+    return user
+
+
+def _login(client, email: str, password: str) -> str:
+    """Return JWT from real /login route."""
+    res = client.post("/api/auth/login", json={"email": email, "password": password})
+    assert res.status_code == 200, res.get_json()
+    return res.get_json()["access_token"]
 
 
 # ------------------------------------------------------------------ #
-# App‑level fixtures
+# Core app / db fixtures
 # ------------------------------------------------------------------ #
 @pytest.fixture(scope="session")
 def app():
-    """Factory‑based test app with a clean DB for the whole session."""
+    """Factory‑based Flask app with clean in‑memory DB."""
     flask_app = create_app()
     flask_app.config.update(
         TESTING=True,
         SQLALCHEMY_DATABASE_URI=TEST_DB_URI,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        JWT_SECRET_KEY="unit-test-secret",
+        JWT_SECRET_KEY="unit‑test‑secret",
         FRONTEND_URL="http://localhost",
         SCHEDULER_API_ENABLED=False,
     )
@@ -51,50 +82,21 @@ def app():
 
 @pytest.fixture
 def client(app):
-    """Fresh Flask test client per test function."""
+    """Fresh client per test → cookies, headers isolated."""
     return app.test_client()
 
 
 # ------------------------------------------------------------------ #
-# User helpers
+# User & token fixtures
 # ------------------------------------------------------------------ #
-def _insert_user(email: str, password: str, role: UserRole):
-    """Upsert utility to avoid UNIQUE clashes."""
-    existing = User.query.filter_by(email=email).first()
-    if existing:
-        db.session.delete(existing)
-        db.session.commit()
-
-    user = User(
-        email=email,
-        password_hash=_hash_password(password),
-        first_name=email.split("@")[0],
-        last_name="Test",
-        role=role,
-        is_active=True,
-    )
-    db.session.add(user)
-    db.session.commit()
-    return user
-
-
 @pytest.fixture
 def registered_user(app):
-    return _insert_user("user@test.dev", "pass1234", UserRole.user)
+    return _upsert_user("user@test.dev", "pass1234", UserRole.user)
 
 
 @pytest.fixture
 def admin_user(app):
-    return _insert_user("admin@test.dev", "admin123", UserRole.admin)
-
-
-# ------------------------------------------------------------------ #
-# JWT helpers
-# ------------------------------------------------------------------ #
-def _login(client, email: str, password: str) -> str:
-    res = client.post("/api/auth/login", json={"email": email, "password": password})
-    assert res.status_code == 200, res.get_json()
-    return res.get_json()["access_token"]
+    return _upsert_user("admin@test.dev", "admin123", UserRole.admin)
 
 
 @pytest.fixture
@@ -105,3 +107,32 @@ def user_token(client, registered_user):
 @pytest.fixture
 def admin_token(client, admin_user):
     return _login(client, admin_user.email, "admin123")
+
+
+# ------------------------------------------------------------------ #
+# Parking‑location factory fixture
+# ------------------------------------------------------------------ #
+@pytest.fixture
+def make_location(client, admin_token):
+    """
+    Callable fixture → returns a helper that creates a fresh, unique
+    parking location (using admin privileges) and returns its JSON dict.
+    """
+
+    def _create(total_slots: int = 10, prefix: str = "Garage") -> dict:
+        payload = {
+            "name": f"{prefix}-{uuid4()}",
+            "address": "123 Main St",
+            "latitude": 1.23,
+            "longitude": 4.56,
+            "total_slots": total_slots,
+        }
+        res = client.post(
+            "/api/parking_location/locations",
+            json=payload,
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+        assert res.status_code == 201, res.get_json()
+        return res.get_json()["location"]
+
+    return _create
