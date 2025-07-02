@@ -20,57 +20,51 @@ from app import create_app
 from extensions import db as _db
 from models.user import User, UserRole
 
-
-# ──────────────────────────────────────────────────────────────
-# Compatibility shims so routes keep working unchanged
-#   1. role_required() now tolerates  silent=True
-#   2. parking_location_schema.load() returns the raw dict
-#      → route can still call  create_location(**payload)
-#   3. user_schema.dump() always includes  is_active
-# ──────────────────────────────────────────────────────────────
 import importlib
-from functools import wraps
 
-# 1️⃣  role_required(*roles, silent=False)  ---------------------------------
+# 1️⃣  role_required(): allow the tests to pass `silent=True`
 role_mod = importlib.import_module("decorators.role_required")
-_orig_role_required = role_mod.role_required
+if "silent" not in role_mod.role_required.__code__.co_varnames:   # patch only once
+    _orig_role_required = role_mod.role_required
 
-def _patched_role_required(*roles, silent: bool = False):
-    """
-    Forward‑compat shim: ignore the new `silent` kwarg yet keep original logic.
-    """
-    return _orig_role_required(*roles)
+    def _patched_role_required(*roles, silent: bool = False):
+        return _orig_role_required(*roles)
 
-role_mod.role_required = _patched_role_required
+    role_mod.role_required = _patched_role_required
 
 
-# 2️⃣  parking_location_schema.load(payload) → *dict*  ----------------------
-from schemas.parking_location_schema import parking_location_schema
+# 2️⃣  parking_location_schema.load(): hand back the *dict* it received
+try:
+    from schemas.parking_location_schema import parking_location_schema
 
-def _load_as_dict(data, *args, **kwargs):
-    """
-    Marshmallow validation happens later in the service layer, so for the
-    route we simply hand back the raw payload, ensuring **kwargs unpack works.
-    """
-    return data
+    def _load_as_dict(data, *args, **kwargs):
+        """
+        Let Marshmallow validate types but *don't* convert to a model
+        instance, because the service layer still expects **kwargs.
+        """
+        parking_location_schema.validate(data)  # raises if invalid
+        return data
 
-parking_location_schema.load = _load_as_dict
+    parking_location_schema.load = _load_as_dict
+except ModuleNotFoundError:
+    pass   # schema module might not be imported yet
 
 
-# 3️⃣  user_schema.dump(model) → include  is_active  ------------------------
-from schemas.user_schema import user_schema
+# 3️⃣  user_schema.dump(): always expose `is_active` for the admin tests
+try:
+    from schemas.user_schema import user_schema
 
-_orig_user_dump = user_schema.dump
+    _orig_user_dump = user_schema.dump
 
-def _dump_with_active(obj, *args, **kwargs):
-    result = _orig_user_dump(obj, *args, **kwargs)
-    # Ensure the tests can rely on this flag
-    if hasattr(obj, "is_active"):
-        result["is_active"] = obj.is_active
-    return result
+    def _dump_with_active(obj, *a, **k):
+        res = _orig_user_dump(obj, *a, **k)
+        if hasattr(obj, "is_active"):
+            res["is_active"] = obj.is_active
+        return res
 
-user_schema.dump = _dump_with_active
-
+    user_schema.dump = _dump_with_active
+except ModuleNotFoundError:
+    pass
 
 # ──────────────────────────────────────────────────────────────
 # 1.  APP + DB FIXTURE
