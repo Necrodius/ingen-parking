@@ -5,7 +5,7 @@ Each line has comments to show exactly what is happening.
 import pytest
 from app import create_app, db   # your factory & db instance
 from models.user import User, UserRole  # adjust import if path differs
-from werkzeug.security import generate_password_hash
+import bcrypt
 
 TEST_DB_URI = "sqlite:///:memory:"  # fast, disposable DB for tests
 
@@ -46,13 +46,16 @@ def client(app):
 
 @pytest.fixture
 def registered_user(app):
-    """
-    Inserts a normal USER row directly via SQLAlchemy (bypassing routes)
-    so tests don’t rely on /register for setup.
-    """
+    """Ensures test user is inserted once per test."""
+    # Clean up if test user already exists
+    existing = User.query.filter_by(email="user@test.dev").first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+
     user = User(
         email="user@test.dev",
-        password_hash=generate_password_hash("pass1234"),  # 🔑 same as login payload
+        password_hash=bcrypt.hashpw("rawpass".encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
         first_name="Jane",
         last_name="Doe",
         role=UserRole.user,
@@ -61,7 +64,6 @@ def registered_user(app):
     db.session.add(user)
     db.session.commit()
     return user
-
 
 @pytest.fixture
 def admin_user(app):
