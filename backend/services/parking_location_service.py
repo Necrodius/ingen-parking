@@ -72,6 +72,6 @@ class ParkingLocationService:
     @staticmethod
     def count_available_slots(loc: ParkingLocation) -> int:
         return (
-            ParkingSlot.query.filter_by(location_id=loc.id, is_available=True)
+            ParkingSlot.query.filter_by(location_id=loc.id)
             .count()
         )

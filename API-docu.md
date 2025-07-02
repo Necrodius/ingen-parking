@@ -197,7 +197,6 @@ Common status codes:
 {
   "id": 55,
   "slot_label": "A‑07",
-  "is_available": true,
   "location_id": 7,
   "created_at": "…",
   "updated_at": "…"
@@ -231,17 +230,12 @@ _(Core columns only – see source code for full details)_
 | ------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `users`             | `id`, `email`(unique), `password_hash`, `first_name`, `last_name`, `role` enum, `active`, `created_at`, `updated_at` |
 | `parking_locations` | `id`, `name`, `address`, `lat`, `lng`, timestamps                                                                    |
-| `parking_slots`     | `id`, `slot_label`, `is_available`, `location_id` FK                                                                 |
+| `parking_slots`     | `id`, `slot_label`, `location_id` FK                                                                                 |
 | `reservations`      | `id`, `user_id` FK, `slot_id` FK, `start_ts`, `end_ts`, `status` enum, timestamps                                    |
 
 ---
 
 ## Business Rules & Status Flows
-
-- **Slot availability**
-
-  - `is_available` flag controls whether new bookings are allowed.
-  - The flag is **NOT** auto‑toggled; admins must set it (e.g. for maintenance).
 
 - **Reservation status lifecycle**
 

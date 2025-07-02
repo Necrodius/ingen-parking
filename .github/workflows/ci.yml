@@ -54,22 +54,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0          # full history, but only for dev
 
       - name: Fast‑forward dev → main
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Ensure both branches are up to date
-          git fetch origin dev:dev
-          git fetch origin main:main
+          git fetch origin main:main   # safe, 'main' isn't checked out
 
-          # Fast‑forward main
-          git checkout main
-          git merge --ff-only dev
+          git checkout -B main origin/main
 
-          # Push (uses the job’s token, respects branch protection that allows GH Actions)
+          git merge --ff-only origin/dev
+
           git push origin main

@@ -19,8 +19,7 @@ class ParkingSlotSchema(SQLAlchemyAutoSchema):
     updated_at = fields.DateTime(dump_only=True)
 
     # ---------- WRITE ----------
-    slot_number = fields.Str(required=True)
-    is_available = fields.Bool(required=False)
+    slot_label = fields.Str(required=True)
 
     # ---------- FOREIGN KEY ----------
     location_id = fields.Int(required=True)

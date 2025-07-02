@@ -164,7 +164,7 @@ def make_location(client, admin_token, app) -> Callable[..., _HybridModelDict]:
     from schemas.parking_location_schema import ParkingLocationSchema
 
     def _factory(total_slots: int = 10, prefix: str = "Garage") -> _HybridModelDict:
-        # 1️⃣  Build payload expected by the create‑location endpoint
+        # Build payload expected by the create‑location endpoint
         payload = {
             "name": f"{prefix}-{uuid4()}",
             "address": f"{uuid4().hex[:8]} Test Street",
@@ -172,7 +172,7 @@ def make_location(client, admin_token, app) -> Callable[..., _HybridModelDict]:
             "lng": round(123 + (hash(prefix) % 1000) / 1000, 6),
         }
 
-        # 2️⃣  Create the location via HTTP to exercise the real route
+        # Create the location via HTTP to exercise the real route
         resp = client.post(
             "/api/parking_location/locations",
             json=payload,
@@ -181,14 +181,13 @@ def make_location(client, admin_token, app) -> Callable[..., _HybridModelDict]:
         assert resp.status_code == 201, resp.get_json()
         loc_json = resp.get_json()["location"]
 
-        # 3️⃣  Add slots quickly in bulk (DB‑level, faster than API loop)
+        # Add slots quickly in bulk (DB‑level, faster than API loop)
         if total_slots:
             with app.app_context():
                 slots = [
                     ParkingSlot(
                         slot_label=f"S-{i:03d}",
-                        location_id=loc_json["id"],
-                        is_available=True,
+                        location_id=loc_json["id"]
                     )
                     for i in range(1, total_slots + 1)
                 ]
@@ -198,7 +197,7 @@ def make_location(client, admin_token, app) -> Callable[..., _HybridModelDict]:
         loc_json["total_slots"] = total_slots
         loc_json["available_slots"] = total_slots
 
-        # 4️⃣  Wrap model + dict together
+        # Wrap model + dict together
         with app.app_context():
             model = ParkingLocation.query.get(loc_json["id"])
             # Serialise again to make sure field names match schema

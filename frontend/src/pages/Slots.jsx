@@ -1,3 +1,13 @@
+// src/pages/Slots.jsx
+/*
+  💡  SLOT LIST + BOOKING (availability derived from reservations)
+  ────────────────────────────────────────────────────────────────
+  • No more reliance on a persisted `is_available` column.
+  • We fetch current‑window reservations and mark slots with a
+    local boolean `taken` (true = occupied / false = free).
+  • Filtering, pagination, and booking flow stay the same.
+*/
+
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -8,41 +18,41 @@ import { localInputToIso, isoToLocalInput } from '../utils/datetime';
 
 export default function Slots() {
   /* ───────── Routing & Context ───────── */
-  const { id: locationId } = useParams();      // parking‑location ID
-  const { state: loc }     = useLocation();    // { name, address }
-  const navigate           = useNavigate();
-  const api                = useApi();
-  const { notify }         = useNotifications();
+  const { id: locationId }     = useParams();             // /:id param
+  const { state: loc }         = useLocation();           // { name, address }
+  const navigate               = useNavigate();
+  const api                    = useApi();
+  const { notify }             = useNotifications();
 
   /* ───────── Component State ───────── */
-  const [slots,   setSlots]   = useState([]);  // all / filtered slots
-  const [loading, setLoading] = useState(false);
-  const [err,     setErr]     = useState('');
+  const [slots, setSlots]           = useState([]);       // decorated with { taken }
+  const [loading, setLoading]       = useState(false);
+  const [err, setErr]               = useState('');
 
-  /* availability‑filter inputs (Asia/Manila local) */
-  const [fStart, setFStart] = useState('');
-  const [fEnd,   setFEnd]   = useState('');
+  /* date‑range filter (Asia/Manila local) */
+  const [fStart, setFStart]         = useState('');
+  const [fEnd, setFEnd]             = useState('');
 
   /* booking modal */
-  const [show,       setShow]    = useState(false);
-  const [activeSlot, setActive]  = useState(null);
-  const [startTs,    setStartTs] = useState('');
-  const [endTs,      setEndTs]   = useState('');
+  const [show, setShow]             = useState(false);
+  const [activeSlot, setActive]     = useState(null);
+  const [startTs, setStartTs]       = useState('');
+  const [endTs, setEndTs]           = useState('');
 
   /* desktop pagination */
-  const [page,     setPage]     = useState(0);
-  const [pageSize, setPageSize] = useState(Infinity);
-  const [isWide,   setIsWide]   = useState(() => window.innerWidth >= 1024);
+  const [page, setPage]             = useState(0);
+  const [pageSize, setPageSize]     = useState(Infinity);
+  const [isWide, setIsWide]         = useState(() => window.innerWidth >= 1024);
 
   /* ───────── Helpers ───────── */
   /* recompute pageSize on resize */
   const calcPageSize = () => {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const HEADER = 270;                    // header + filter ≈ 270 px
-    const CARD   = 160;                    // slot‑card height
+    const HEADER = 270;   // header + filter ≈ 270 px
+    const CARD   = 160;   // slot‑card height
 
-    let cols = 1;
+    let cols = 1;               // mobile default
     if (w >= 1024) cols = 4;
     else if (w >= 768) cols = 3;
     else if (w >= 640) cols = 2;
@@ -54,46 +64,64 @@ export default function Slots() {
   };
 
   useEffect(() => {
-    calcPageSize();                        // initial
+    calcPageSize();                                // on mount
     window.addEventListener('resize', calcPageSize);
     return () => window.removeEventListener('resize', calcPageSize);
   }, []);
 
-  /* fetch all slots for this location */
+  /* decorate slot array with `taken` flag */
+  const markTaken = (slotArr, reservationsArr) => {
+    const takenIds = new Set(reservationsArr.map(r => r.slot_id));
+    return slotArr.map(s => ({ ...s, taken: takenIds.has(s.id) }));
+  };
+
+  /* fetch all slots + *current* reservations (for "now") */
   const loadAllSlots = useCallback(async () => {
     setLoading(true); setErr('');
     try {
-      const { slots } = await api.get(`/parking_slot/slots?location_id=${locationId}`);
-      setSlots(slots);
-    } catch (e) { setErr(e.message); }
-    finally      { setLoading(false); }
+      const [{ slots: rawSlots }, { reservations }] = await Promise.all([
+        api.get(`/parking_slot/slots?location_id=${locationId}`),
+        api.get(
+          `/reservation/reservations?location_id=${locationId}`
+          + `&start_ts=${encodeURIComponent(new Date().toISOString())}`
+          + `&end_ts=${encodeURIComponent(new Date().toISOString())}`
+        ),
+      ]);
+      setSlots(markTaken(rawSlots, reservations));
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
   }, [api, locationId]);
 
-  /* filter by availability + reservation overlap */
+  /* filter by availability within a custom window */
   const applyFilter = useCallback(async () => {
     if (!fStart || !fEnd) return;
 
     const qs =
-      `?location_id=${locationId}` +
-      `&start_ts=${encodeURIComponent(localInputToIso(fStart))}` +
-      `&end_ts=${encodeURIComponent(localInputToIso(fEnd))}`;
+      `?location_id=${locationId}`
+      + `&start_ts=${encodeURIComponent(localInputToIso(fStart))}`
+      + `&end_ts=${encodeURIComponent(localInputToIso(fEnd))}`;
 
     setLoading(true); setErr('');
     try {
-      const [{ slots }, { reservations }] = await Promise.all([
+      const [{ slots: rawSlots }, { reservations }] = await Promise.all([
         api.get(`/parking_slot/slots${qs}`),
         api.get(`/reservation/reservations${qs}`),
       ]);
-      const taken = new Set(reservations.map((r) => r.slot_id));
-      setSlots(slots.map((s) => (taken.has(s.id) ? { ...s, is_available: false } : s)));
-    } catch (e) { setErr(e.message); }
-    finally      { setLoading(false); }
+      setSlots(markTaken(rawSlots, reservations));
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
   }, [api, fStart, fEnd, locationId]);
 
-  /* clear filter */
+  /* clear filter back to "now" view */
   const clearFilter = () => { setFStart(''); setFEnd(''); loadAllSlots(); };
 
-  /* reset to first page when data / layout changes */
+  /* reset to first page whenever the data‑set or layout changes */
   useEffect(() => setPage(0), [slots.length, pageSize, isWide]);
 
   /* slice for current page (desktop) */
@@ -109,15 +137,16 @@ export default function Slots() {
   /* initial load */
   useEffect(() => { loadAllSlots(); }, [locationId, loadAllSlots]);
 
-  /* open booking modal */
+  /* open booking modal if the slot is still free */
   const openBooking = (slot) => {
+    if (slot.taken) return;                    // sanity‑guard
     setActive(slot);
 
     const now = new Date();
     const dS  = fStart ? new Date(fStart) : now;
     const dE  = fEnd
       ? new Date(fEnd)
-      : new Date(now.getTime() + 2 * 60 * 60 * 1000); // +2h
+      : new Date(now.getTime() + 2 * 60 * 60 * 1000); // +2 h default
 
     setStartTs(isoToLocalInput(dS.toISOString()));
     setEndTs  (isoToLocalInput(dE.toISOString()));
@@ -136,14 +165,17 @@ export default function Slots() {
         end_ts  : localInputToIso(endTs),
       });
       notify('Reservation confirmed!');
-      setSlots((prev) =>
-        prev.map((s) => (s.id === activeSlot.id ? { ...s, is_available: false } : s)),
-      );
+      // mark it taken *locally* so UI updates immediately
+      setSlots(prev => prev.map(
+        s => (s.id === activeSlot.id ? { ...s, taken: true } : s),
+      ));
       closeModal();
-    } catch (e) { toast.error(e.message); }
+    } catch (e) {
+      toast.error(e.message);
+    }
   };
 
-  /* close modal */
+  /* close modal helper */
   const closeModal = () => { setShow(false); setActive(null); };
 
   /* ───────── UI ───────── */
@@ -179,7 +211,7 @@ export default function Slots() {
               type="datetime-local"
               className="rounded-lg border border-white/20 bg-white/90 text-blue-700 px-2 py-1 text-xs"
               value={fStart}
-              onChange={(e) => setFStart(e.target.value)}
+              onChange={e => setFStart(e.target.value)}
             />
           </label>
 
@@ -192,7 +224,7 @@ export default function Slots() {
               type="datetime-local"
               className="rounded-lg border border-white/20 bg-white/90 text-blue-700 px-2 py-1 text-xs"
               value={fEnd}
-              onChange={(e) => setFEnd(e.target.value)}
+              onChange={e => setFEnd(e.target.value)}
             />
           </label>
 
@@ -228,18 +260,18 @@ export default function Slots() {
 
           {/* grid of slot cards */}
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {pagedSlots.map((s) => (
+            {pagedSlots.map(s => (
               <div
                 key={s.id}
                 className={`p-4 rounded-2xl shadow flex flex-col justify-between transition ${
-                  s.is_available
-                    ? 'bg-white text-blue-700 border-2 border-green-500 hover:shadow-lg'
-                    : 'bg-gray-100/50 text-gray-500 border border-gray-300 opacity-60'
+                  s.taken
+                    ? 'bg-gray-100/50 text-gray-500 border border-gray-300 opacity-60'
+                    : 'bg-white text-blue-700 border-2 border-green-500 hover:shadow-lg'
                 }`}
               >
                 <span className="font-mono text-lg">Slot {s.slot_label}</span>
 
-                {s.is_available ? (
+                {!s.taken ? (
                   <button
                     onClick={() => openBooking(s)}
                     className="mt-3 px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700"
@@ -258,7 +290,7 @@ export default function Slots() {
         {isWide && totalPages > 1 && (
           <div className="mt-4 flex justify-center items-center gap-4 text-sm">
             <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
               className="px-3 py-1 rounded-lg border hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -268,7 +300,7 @@ export default function Slots() {
             <span>Page {page + 1} / {totalPages}</span>
 
             <button
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page === totalPages - 1}
               className="px-3 py-1 rounded-lg border hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -283,7 +315,7 @@ export default function Slots() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeModal}>
           <div
             className="w-full max-w-sm rounded-3xl backdrop-blur-md bg-white/90 p-8 shadow-2xl"
-            onClick={(e) => e.stopPropagation()} /* outside click closes */
+            onClick={e => e.stopPropagation()} /* outside click closes */
           >
             <h2 className="mb-4 text-xl font-semibold text-blue-700">
               Book Slot {activeSlot.slot_label}
@@ -297,7 +329,7 @@ export default function Slots() {
                   type="datetime-local"
                   className="mt-1 w-full rounded-lg border px-3 py-2"
                   value={startTs}
-                  onChange={(e) => setStartTs(e.target.value)}
+                  onChange={e => setStartTs(e.target.value)}
                 />
               </label>
 
@@ -308,7 +340,7 @@ export default function Slots() {
                   type="datetime-local"
                   className="mt-1 w-full rounded-lg border px-3 py-2"
                   value={endTs}
-                  onChange={(e) => setEndTs(e.target.value)}
+                  onChange={e => setEndTs(e.target.value)}
                 />
               </label>
 

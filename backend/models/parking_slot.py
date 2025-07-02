@@ -10,7 +10,6 @@ class ParkingSlot(db.Model, TimestampMixin):
 
     id              = Column(Integer, primary_key=True)
     slot_label      = Column(String(20), server_default="Slot")
-    is_available    = Column(Boolean, nullable=False, server_default=text("true"))
     location_id     = Column(Integer, ForeignKey("parking_locations.id"), nullable=False)
     location        = relationship("ParkingLocation", back_populates="slots")
     reservations    = relationship("Reservation", back_populates="slot", cascade="all, delete-orphan")

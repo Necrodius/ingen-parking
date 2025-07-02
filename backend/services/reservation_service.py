@@ -51,14 +51,12 @@ class ReservationService:
         # Slot must exist and be free
         slot = (
             ParkingSlot.query
-            .options(load_only(ParkingSlot.id, ParkingSlot.is_available))
+            .options(load_only(ParkingSlot.id))
             .filter_by(id=data["slot_id"])
             .first()
         )
         if not slot:
             raise ValueError("Slot not found")
-        if not slot.is_available:
-            raise ValueError("Slot is already marked occupied")
 
         # Make sure previous reservations are up‑to‑date
         ReservationService.refresh_slot_statuses(data["slot_id"])

@@ -7,8 +7,7 @@ class TestParkingSlotRoutes:
 #        
 #        payload = {
 #            "slot_label": "A1",
-#            "location_id": loc["id"],
-#            "is_available": True
+#            "location_id": loc["id"]
 #        }
 #        res = client.post("/api/parking_slot/slots",
 #                         json=payload,
@@ -23,8 +22,7 @@ class TestParkingSlotRoutes:
         
         payload = {
             "slot_label": "B1",
-            "location_id": loc["id"],
-            "is_available": True
+            "location_id": loc["id"]
         }
         res = client.post("/api/parking_slot/slots",
                          json=payload,
@@ -74,8 +72,7 @@ class TestParkingSlotRoutes:
         slot_id = slots_res.get_json()["slots"][0]["id"]
         
         payload = {
-            "slot_label": "Updated-A1",
-            "is_available": False
+            "slot_label": "Updated-A1"
         }
         res = client.put(f"/api/parking_slot/slots/{slot_id}",
                         json=payload,
@@ -83,7 +80,6 @@ class TestParkingSlotRoutes:
         assert res.status_code == 200
         data = res.get_json()
         assert data["slot"]["slot_label"] == "Updated-A1"
-        assert data["slot"]["is_available"] is False
     
     def test_admin_delete_slot(self, client, admin_token, make_location):
         loc = make_location(total_slots=1)

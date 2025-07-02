@@ -49,12 +49,6 @@ class ParkingSlotService:
         db.session.commit()
         return slot
 
-    @staticmethod
-    def set_availability(slot: ParkingSlot, is_available: bool) -> ParkingSlot:
-        slot.is_available = is_available
-        db.session.commit()
-        return slot
-
    # ---------- DELETE ----------
     @staticmethod
     def delete_slot(slot: ParkingSlot) -> None:
