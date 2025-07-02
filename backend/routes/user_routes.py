@@ -10,21 +10,17 @@ from utils.security import role_required
 
 user_bp = Blueprint("user_bp", __name__)
 
-# ──────────── helpers ────────────
+# ---------- HELPERS ----------
 def _is_self(user_id: int) -> bool:
-    """True when the JWT subject matches the target user_id."""
     try:
         return user_id == int(get_jwt_identity())
     except (TypeError, ValueError):
         return False
 
-
 def _current_role() -> str:
-    """Return caller’s role string from the JWT (default = 'user')."""
     return get_jwt().get("role", "user")
 
-
-# ──────────── CREATE ────────────
+# ---------- CREATE ----------
 @user_bp.post("/")
 @jwt_required()
 @role_required(UserRole.admin)
@@ -38,15 +34,13 @@ def create_user():
     except ValueError as dup:
         return jsonify({"error": str(dup)}), 409
 
-
-# ──────────── READ ────────────
+# ---------- READ ----------
 @user_bp.get("/")
 @jwt_required()
 @role_required(UserRole.admin)
 def list_users():
     users = UserService.list_users()
     return jsonify({"users": users_schema.dump(users)}), 200
-
 
 @user_bp.get("/me")
 @jwt_required()
@@ -56,7 +50,6 @@ def get_me():
     if not user:
         return jsonify({"error": "User not found"}), 404
     return jsonify({"user": user_schema.dump(user)}), 200
-
 
 @user_bp.get("/<int:user_id>")
 @jwt_required()
@@ -69,8 +62,7 @@ def get_user(user_id: int):
         return jsonify({"error": "User not found"}), 404
     return jsonify({"user": user_schema.dump(user)}), 200
 
-
-# ──────────── UPDATE ────────────
+# ---------- UPDATE ----------
 @user_bp.put("/<int:user_id>")
 @jwt_required()
 def update_user(user_id: int):
@@ -99,8 +91,7 @@ def update_user(user_id: int):
     except ValueError as dup:
         return jsonify({"error": str(dup)}), 409
 
-
-# ──────────── CHANGE PASSWORD ────────────
+# Change password
 @user_bp.post("/<int:user_id>/change-password")
 @jwt_required()
 def change_password(user_id: int):
@@ -125,7 +116,7 @@ def change_password(user_id: int):
         return jsonify({"error": str(err)}), 400
 
 
-# ──────────── DELETE / DEACTIVATE ────────────
+# ---------- DELETE/DEACTIVATE ----------
 @user_bp.delete("/<int:user_id>")
 @jwt_required()
 @role_required(UserRole.admin)
@@ -135,7 +126,6 @@ def delete_user(user_id: int):
         return jsonify({"error": "User not found"}), 404
     UserService.delete_user(user)
     return jsonify({}), 204
-
 
 @user_bp.post("/<int:user_id>/deactivate")
 @jwt_required()

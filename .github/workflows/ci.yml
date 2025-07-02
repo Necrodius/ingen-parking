@@ -1,19 +1,17 @@
 # ci.yml – Run tests on every push to dev.  If tests pass, automatically
-# fast‑forward‑merge dev → main. Protect main in repo settings so only
-# the GitHub Actions app can push.
+# fast‑forward‑merge dev to main.
+# TO DO: Protect main in repo settings so only the GitHub Actions app can push.
 
 name: Backend CI & Auto‑Merge
 
-# ------------------------------------------------------------
-# 1. Trigger: push events that land on the dev branch only
-# ------------------------------------------------------------
+# Trigger: push events that land on the dev branch only
 on:
   push:
     branches:
       - dev
 
 permissions:
-  contents: write      # required so the merge step can push to main
+  contents: write # required so the merge step can push to main
   pull-requests: write # needed for some auto‑merge actions
 
 jobs:
@@ -21,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend   # all commands execute inside /backend
+        working-directory: backend # all commands execute inside /backend
     env:
       PYTHONPATH: ${{ github.workspace }}/backend
     steps:
@@ -31,7 +29,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'       # match your local dev/runtime
+          python-version: "3.12" # match your local dev/runtime
 
       - name: Install dependencies
         run: |
@@ -54,7 +52,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0          # full history, but only for dev
+          fetch-depth: 0
 
       - name: Fast‑forward dev → main
         env:
