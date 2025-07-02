@@ -37,10 +37,10 @@ def app() -> Generator:
     with flask_app.app_context():
         _db.create_all()
 
-        # ── Import every schema module so subclasses are registered ─────────
+        # ── Import schema modules so subclasses are registered ─────────────
         from schemas import parking_location_schema, parking_slot_schema, reservation_schema  # noqa: F401
 
-        # ── Monkey‑patch: inject test session into *all* schema subclasses ──
+        # ── Monkey‑patch: inject test session into *all* schema subclasses ─
         from marshmallow_sqlalchemy import SQLAlchemySchema
 
         def _inject_session(cls: type) -> None:
@@ -75,6 +75,7 @@ def _upsert_user(email: str, password: str, role: UserRole) -> User:
     prior = User.query.filter_by(email=email).first()
     if prior:
         _db.session.delete(prior)
+        _db.session.flush()  # ensure UNIQUE(email) slot freed
     user = User(
         email=email,
         password_hash=_hash(password),
@@ -120,11 +121,11 @@ def admin_token(client, admin_user):
 # ──────────────────────────────────────────────────────────────
 @pytest.fixture
 def make_location(client, admin_token) -> Callable[[int, str], Dict[str, Any]]:
-    """Create a ParkingLocation + <slot_count> fresh slots, return its JSON dict."""
+    """Create a ParkingLocation + <total_slots> fresh slots, return its JSON dict."""
 
     from models.parking_slot import ParkingSlot  # late import keeps startup quick
 
-    def _create(slot_count: int = 10, prefix: str = "Garage") -> Dict[str, Any]:
+    def _create(total_slots: int = 10, prefix: str = "Garage") -> Dict[str, Any]:
         # 1️⃣  Create the location via real HTTP route
         payload = {
             "name": f"{prefix}-{uuid4()}",
@@ -148,12 +149,14 @@ def make_location(client, admin_token) -> Callable[[int, str], Dict[str, Any]]:
                     location_id=location["id"],
                     is_available=True,
                 )
-                for i in range(1, slot_count + 1)
+                for i in range(1, total_slots + 1)
             ]
         )
         _db.session.commit()
 
-        location["available_slots"] = slot_count
+        # 3️⃣  Echo slot counts so tests can assert on them
+        location["available_slots"] = total_slots
+        location["total_slots"] = total_slots
         return location
 
     return _create
