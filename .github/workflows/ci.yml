@@ -42,6 +42,9 @@ jobs:
       # ---------- Run pytest ----------
       - name: Run unit tests with coverage
         run: |
+          echo "DATABASE_URL=sqlite:///test.db" > .env
+          echo "SECRET_KEY=dev-secret" >> .env
+          echo "FRONTEND_URL=http://localhost:5173" >> .env
           pytest -v --cov --cov-report=term-missing
 
   merge-to-main:
