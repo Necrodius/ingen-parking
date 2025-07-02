@@ -1,9 +1,7 @@
-from uuid import uuid4
-
 def test_user_reservation_flow(client, make_location, user_token):
-    # Admin sets up location + slots
+    # setup location (admin token inside helper)
     loc = make_location(total_slots=5, prefix="ResvGarage")
-    # user reserves slot #1
+
     booking = {
         "parking_location_id": loc["id"],
         "slot_number": 1,
@@ -18,7 +16,7 @@ def test_user_reservation_flow(client, make_location, user_token):
     assert res_create.status_code == 201
     res_id = res_create.get_json()["reservation"]["id"]
 
-    # fetch should succeed
+    # fetch
     res_get = client.get(
         f"/api/reservation/reservations/{res_id}",
         headers={"Authorization": f"Bearer {user_token}"},
