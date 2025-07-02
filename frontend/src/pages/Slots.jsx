@@ -1,12 +1,4 @@
 // src/pages/Slots.jsx
-/*
-  💡  SLOT LIST + BOOKING (availability derived from reservations)
-  ────────────────────────────────────────────────────────────────
-  • No more reliance on a persisted `is_available` column.
-  • We fetch current‑window reservations and mark slots with a
-    local boolean `taken` (true = occupied / false = free).
-  • Filtering, pagination, and booking flow stay the same.
-*/
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
@@ -18,113 +10,113 @@ import { localInputToIso, isoToLocalInput } from '../utils/datetime';
 
 export default function Slots() {
   /* ───────── Routing & Context ───────── */
-  const { id: locationId }     = useParams();             // /:id param
-  const { state: loc }         = useLocation();           // { name, address }
-  const navigate               = useNavigate();
-  const api                    = useApi();
-  const { notify }             = useNotifications();
+  const { id: locationId } = useParams();
+  const { state: loc }     = useLocation();       // { name, address }
+  const navigate           = useNavigate();
+  const api                = useApi();
+  const { notify }         = useNotifications();
 
-  /* ───────── Component State ───────── */
-  const [slots, setSlots]           = useState([]);       // decorated with { taken }
-  const [loading, setLoading]       = useState(false);
-  const [err, setErr]               = useState('');
+  /* ───────── State ───────── */
+  const [slots,   setSlots]   = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err,     setErr]     = useState('');
 
-  /* date‑range filter (Asia/Manila local) */
-  const [fStart, setFStart]         = useState('');
-  const [fEnd, setFEnd]             = useState('');
+  const [fStart, setFStart]   = useState('');
+  const [fEnd,   setFEnd]     = useState('');
 
-  /* booking modal */
-  const [show, setShow]             = useState(false);
-  const [activeSlot, setActive]     = useState(null);
-  const [startTs, setStartTs]       = useState('');
-  const [endTs, setEndTs]           = useState('');
+  const [show,      setShow]   = useState(false);
+  const [activeSlot,setActive] = useState(null);
+  const [startTs,   setStartTs]= useState('');
+  const [endTs,     setEndTs]  = useState('');
 
-  /* desktop pagination */
-  const [page, setPage]             = useState(0);
-  const [pageSize, setPageSize]     = useState(Infinity);
-  const [isWide, setIsWide]         = useState(() => window.innerWidth >= 1024);
+  const [page,     setPage]     = useState(0);
+  const [pageSize, setPageSize] = useState(Infinity);
+  const [isWide,   setIsWide]   = useState(() => window.innerWidth >= 1024);
 
   /* ───────── Helpers ───────── */
-  /* recompute pageSize on resize */
   const calcPageSize = () => {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const HEADER = 270;   // header + filter ≈ 270 px
-    const CARD   = 160;   // slot‑card height
+    const HEADER = 270, CARD = 160;
+    const w = window.innerWidth, h = window.innerHeight;
 
-    let cols = 1;               // mobile default
-    if (w >= 1024) cols = 4;
-    else if (w >= 768) cols = 3;
-    else if (w >= 640) cols = 2;
+    let cols = 1;
+    if      (w >= 1024) cols = 4;
+    else if (w >=  768) cols = 3;
+    else if (w >=  640) cols = 2;
 
     const rows = Math.max(1, Math.floor((h - HEADER) / CARD));
-
     setPageSize(cols * rows);
     setIsWide(w >= 1024);
   };
 
   useEffect(() => {
-    calcPageSize();                                // on mount
+    calcPageSize();
     window.addEventListener('resize', calcPageSize);
     return () => window.removeEventListener('resize', calcPageSize);
   }, []);
 
-  /* decorate slot array with `taken` flag */
+  /* mark taken slots */
   const markTaken = (slotArr, reservationsArr) => {
-    const takenIds = new Set(reservationsArr.map(r => r.slot_id));
+    const active = reservationsArr.filter(
+      r => r.status === 'ReservationStatus.booked' || r.status === 'ReservationStatus.ongoing'
+    );
+    const takenIds = new Set(active.map(r => r.slot_id));
     return slotArr.map(s => ({ ...s, taken: takenIds.has(s.id) }));
   };
 
-  /* fetch all slots + *current* reservations (for "now") */
-  const loadAllSlots = useCallback(async () => {
+  /* ─── Network helpers ─── */
+  const fetchSlots = useCallback(
+    () => api.get(`/parking_slot/slots?location_id=${locationId}`)
+            .then(r => r.slots),
+    [api, locationId],
+  );
+
+  const fetchReservations = useCallback(
+    (startISO, endISO) =>
+      api.get(
+        `/reservation/reservations`
+        + `?location_id=${locationId}`
+        + `&start_ts=${encodeURIComponent(startISO)}`
+        + `&end_ts=${encodeURIComponent(endISO)}`
+      ).then(r => r.reservations),
+    [api, locationId],
+  );
+
+  /* ---------- initial / “always‑bookable” load ---------- */
+  const loadSlotsWithoutReservations = useCallback(async () => {      // ★ NEW
     setLoading(true); setErr('');
     try {
-      const [{ slots: rawSlots }, { reservations }] = await Promise.all([
-        api.get(`/parking_slot/slots?location_id=${locationId}`),
-        api.get(
-          `/reservation/reservations?location_id=${locationId}`
-          + `&start_ts=${encodeURIComponent(new Date().toISOString())}`
-          + `&end_ts=${encodeURIComponent(new Date().toISOString())}`
-        ),
-      ]);
-      setSlots(markTaken(rawSlots, reservations));
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api, locationId]);
+      const rawSlots = await fetchSlots();
+      // mark them ALL as free
+      setSlots(rawSlots.map(s => ({ ...s, taken: false })));
+    } catch (e) { setErr(e.message); }
+    finally      { setLoading(false); }
+  }, [fetchSlots]);
 
-  /* filter by availability within a custom window */
+  /* ---------- apply date‑range filter ---------- */
   const applyFilter = useCallback(async () => {
     if (!fStart || !fEnd) return;
-
-    const qs =
-      `?location_id=${locationId}`
-      + `&start_ts=${encodeURIComponent(localInputToIso(fStart))}`
-      + `&end_ts=${encodeURIComponent(localInputToIso(fEnd))}`;
-
     setLoading(true); setErr('');
+
     try {
-      const [{ slots: rawSlots }, { reservations }] = await Promise.all([
-        api.get(`/parking_slot/slots${qs}`),
-        api.get(`/reservation/reservations${qs}`),
+      const [rawSlots, reservations] = await Promise.all([
+        fetchSlots(),                                                // full list
+        fetchReservations(localInputToIso(fStart), localInputToIso(fEnd)),
       ]);
       setSlots(markTaken(rawSlots, reservations));
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [api, fStart, fEnd, locationId]);
+    } catch (e) { setErr(e.message); }
+    finally      { setLoading(false); }
+  }, [fStart, fEnd, fetchSlots, fetchReservations]);
 
-  /* clear filter back to "now" view */
-  const clearFilter = () => { setFStart(''); setFEnd(''); loadAllSlots(); };
+  /* ---------- clear filter ---------- */
+  const clearFilter = () => {                                        // ★ CHANGED
+    setFStart(''); setFEnd('');
+    loadSlotsWithoutReservations();
+  };
 
-  /* reset to first page whenever the data‑set or layout changes */
+  /* reset page whenever data or layout changes */
   useEffect(() => setPage(0), [slots.length, pageSize, isWide]);
 
-  /* slice for current page (desktop) */
+  /* slice for desktop */
   const pagedSlots = useMemo(
     () => (isWide
       ? slots.slice(page * pageSize, page * pageSize + pageSize)
@@ -135,11 +127,11 @@ export default function Slots() {
   const totalPages = isWide ? Math.ceil(slots.length / pageSize) : 1;
 
   /* initial load */
-  useEffect(() => { loadAllSlots(); }, [locationId, loadAllSlots]);
+  useEffect(() => { loadSlotsWithoutReservations(); }, [locationId, loadSlotsWithoutReservations]);
 
-  /* open booking modal if the slot is still free */
+  /* booking modal helpers unchanged */
   const openBooking = (slot) => {
-    if (slot.taken) return;                    // sanity‑guard
+    // no taken check here – everything is bookable unless the date filter says otherwise
     setActive(slot);
 
     const now = new Date();
@@ -153,7 +145,6 @@ export default function Slots() {
     setShow(true);
   };
 
-  /* confirm booking */
   const handleBook = async () => {
     if (new Date(endTs) <= new Date(startTs)) {
       toast.error('End time must be after start time'); return;
@@ -165,17 +156,16 @@ export default function Slots() {
         end_ts  : localInputToIso(endTs),
       });
       notify('Reservation confirmed!');
-      // mark it taken *locally* so UI updates immediately
-      setSlots(prev => prev.map(
-        s => (s.id === activeSlot.id ? { ...s, taken: true } : s),
-      ));
+      // Optional: update UI only if current filter window overlaps new booking
+      if (fStart && fEnd) {
+        setSlots(prev =>
+          prev.map(s => (s.id === activeSlot.id ? { ...s, taken: true } : s))
+        );
+      }
       closeModal();
-    } catch (e) {
-      toast.error(e.message);
-    }
+    } catch (e) { toast.error(e.message); }
   };
 
-  /* close modal helper */
   const closeModal = () => { setShow(false); setActive(null); };
 
   /* ───────── UI ───────── */

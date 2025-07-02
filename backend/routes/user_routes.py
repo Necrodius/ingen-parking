@@ -1,8 +1,7 @@
-# backend/routes/user_routes.py
+# 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from marshmallow import ValidationError
-
 from models.user import UserRole
 from schemas.user_schema import user_schema, users_schema
 from services.user_service import UserService
