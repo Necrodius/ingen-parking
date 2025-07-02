@@ -47,9 +47,10 @@ services:
     envVars:
       - key: VITE_BACKEND_URL
         value: https://ingen-parking-backend.onrender.com/api
-    redirects:
-      - source: /*
-        destination: /index.html
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /
         status: 200
 
 databases:
