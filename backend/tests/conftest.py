@@ -5,70 +5,53 @@ conftest.py – central Pytest helpers for Ingen‑Parking
 • Provides fixtures:
     client, registered_user, admin_user,
     user_token, admin_token,
-    make_location()  -> creates a unique ParkingLocation with N fresh slots.
+    make_location()  → returns a dict‑AND‑model hybrid.
 """
 
 from __future__ import annotations
 
-import pytest
 import bcrypt
+import pytest
 from uuid import uuid4
 from datetime import datetime, timezone, timedelta
 from typing import Generator, Callable, Dict, Any
+from collections.abc import MutableMapping
 
 from app import create_app
 from extensions import db as _db
 from models.user import User, UserRole
 
-import importlib
+# ╭─────────────────────────────────────────────────────────────╮
+# │ 0.  A tiny reusable wrapper – model ⇄ dict hybrid           │
+# ╰─────────────────────────────────────────────────────────────╯
+class _HybridModelDict(MutableMapping):
+    """
+    Wrap a SQLAlchemy model so it can be used BOTH as:
+      • an object  – `obj.id`, `obj.name`
+      • a mapping – `json={**obj}`
+    """
+    def __init__(self, model, data: Dict[str, Any]):
+        self._model = model
+        self._data  = data     # serialised dict (API‑friendly)
 
-# 1️⃣  role_required(): allow the tests to pass `silent=True`
-role_mod = importlib.import_module("decorators.role_required")
-if "silent" not in role_mod.role_required.__code__.co_varnames:   # patch only once
-    _orig_role_required = role_mod.role_required
+    # attribute access proxies to the model
+    def __getattr__(self, item):    return getattr(self._model, item)
 
-    def _patched_role_required(*roles, silent: bool = False):
-        return _orig_role_required(*roles)
+    # mapping protocol
+    def __getitem__(self, k):       return self._data[k]
+    def __setitem__(self, k, v):    self._data[k] = v
+    def __delitem__(self, k):       del self._data[k]
+    def __iter__(self):             return iter(self._data)
+    def __len__(self):              return len(self._data)
 
-    role_mod.role_required = _patched_role_required
+    # nice repr for test failures
+    def __repr__(self):
+        cls = self._model.__class__.__name__
+        return f"<Hybrid {cls} id={getattr(self._model, 'id', None)}>"
 
-
-# 2️⃣  parking_location_schema.load(): hand back the *dict* it received
-try:
-    from schemas.parking_location_schema import parking_location_schema
-
-    def _load_as_dict(data, *args, **kwargs):
-        """
-        Let Marshmallow validate types but *don't* convert to a model
-        instance, because the service layer still expects **kwargs.
-        """
-        parking_location_schema.validate(data)  # raises if invalid
-        return data
-
-    parking_location_schema.load = _load_as_dict
-except ModuleNotFoundError:
-    pass   # schema module might not be imported yet
-
-
-# 3️⃣  user_schema.dump(): always expose `is_active` for the admin tests
-try:
-    from schemas.user_schema import user_schema
-
-    _orig_user_dump = user_schema.dump
-
-    def _dump_with_active(obj, *a, **k):
-        res = _orig_user_dump(obj, *a, **k)
-        if hasattr(obj, "is_active"):
-            res["is_active"] = obj.is_active
-        return res
-
-    user_schema.dump = _dump_with_active
-except ModuleNotFoundError:
-    pass
-
-# ──────────────────────────────────────────────────────────────
-# 1.  APP + DB FIXTURE
-# ──────────────────────────────────────────────────────────────
+# ╭─────────────────────────────────────────────────────────────╮
+# │ 1.  APP + DB FIXTURE                                        │
+# ╰─────────────────────────────────────────────────────────────╯
 @pytest.fixture(scope="session")
 def app() -> Generator:
     """Create a Flask app bound to an in‑memory SQLite DB for the *entire* test run."""
@@ -87,36 +70,33 @@ def app() -> Generator:
     with flask_app.app_context():
         _db.create_all()
 
-        # ── Import schema modules so subclasses are registered ─────────────
+        # ── Import schema modules so subclasses register themselves ──
         try:
             from schemas import (
-                parking_location_schema, 
-                parking_slot_schema, 
+                parking_location_schema,
+                parking_slot_schema,
                 reservation_schema,
-                user_schema
+                user_schema,
             )  # noqa: F401
         except ImportError:
-            # Schemas might not exist yet or have different names
             pass
 
-        # ── Monkey‑patch: inject test session into *all* schema subclasses ─
+        # ── Inject the test session into every Marshmallow‑SQLA schema ──
         try:
             from marshmallow_sqlalchemy import SQLAlchemySchema
 
             def _inject_session(cls: type) -> None:
-                if hasattr(cls, 'opts') and getattr(cls.opts, "sqla_session", None) is None:
+                if hasattr(cls, "opts") and getattr(cls.opts, "sqla_session", None) is None:
                     cls.opts.sqla_session = _db.session
                 for sub in cls.__subclasses__():
                     _inject_session(sub)
 
             _inject_session(SQLAlchemySchema)
         except ImportError:
-            # marshmallow_sqlalchemy might not be used
             pass
 
         yield flask_app
 
-        # Cleanup
         _db.session.remove()
         _db.drop_all()
 
@@ -126,10 +106,9 @@ def client(app):
     """A test client for issuing requests to the Flask app."""
     return app.test_client()
 
-
-# ──────────────────────────────────────────────────────────────
-# 2.  USER HELPERS
-# ──────────────────────────────────────────────────────────────
+# ╭─────────────────────────────────────────────────────────────╮
+# │ 2.  USER HELPERS                                            │
+# ╰─────────────────────────────────────────────────────────────╯
 def _hash_password(password: str) -> str:
     """Generate a bcrypt hash with 12 rounds (fast in CI, still realistic)."""
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
@@ -137,23 +116,19 @@ def _hash_password(password: str) -> str:
 
 def _create_or_update_user(email: str, password: str, role: UserRole, **kwargs) -> User:
     """Create or replace a user so each test starts from a clean slate."""
-    # Remove existing user if any
-    existing_user = User.query.filter_by(email=email).first()
-    if existing_user:
-        _db.session.delete(existing_user)
-        _db.session.flush()  # Ensure UNIQUE(email) constraint is freed
+    existing = User.query.filter_by(email=email).first()
+    if existing:
+        _db.session.delete(existing)
+        _db.session.flush()
 
-    # Create new user
-    user_data = {
-        'email': email,
-        'password_hash': _hash_password(password),
-        'first_name': kwargs.get('first_name', email.split('@')[0].title()),
-        'last_name': kwargs.get('last_name', 'Test'),
-        'role': role,
-        'is_active': kwargs.get('is_active', True),
-    }
-    
-    user = User(**user_data)
+    user = User(
+        email=email,
+        password_hash=_hash_password(password),
+        first_name=kwargs.get("first_name", email.split("@")[0].title()),
+        last_name=kwargs.get("last_name", "Test"),
+        role=role,
+        is_active=kwargs.get("is_active", True),
+    )
     _db.session.add(user)
     _db.session.commit()
     return user
@@ -161,201 +136,176 @@ def _create_or_update_user(email: str, password: str, role: UserRole, **kwargs) 
 
 @pytest.fixture
 def registered_user(app):
-    """Create a regular user for testing."""
     return _create_or_update_user(
-        email="user@test.dev", 
-        password="pass1234", 
+        email="user@test.dev",
+        password="pass1234",
         role=UserRole.user,
         first_name="Regular",
-        last_name="User"
+        last_name="User",
     )
 
 
 @pytest.fixture
 def admin_user(app):
-    """Create an admin user for testing."""
     return _create_or_update_user(
-        email="admin@test.dev", 
-        password="admin123", 
+        email="admin@test.dev",
+        password="admin123",
         role=UserRole.admin,
         first_name="Admin",
-        last_name="User"
+        last_name="User",
     )
 
-
-# ──────────────────────────────────────────────────────────────
-# 3.  TOKEN FIXTURES
-# ──────────────────────────────────────────────────────────────
+# ╭─────────────────────────────────────────────────────────────╮
+# │ 3.  TOKEN FIXTURES                                          │
+# ╰─────────────────────────────────────────────────────────────╯
 def _get_auth_token(client, email: str, password: str) -> str:
-    """Login and return the access token."""
-    response = client.post("/api/auth/login", json={
-        "email": email, 
-        "password": password
-    })
-    
-    if response.status_code != 200:
-        raise Exception(f"Login failed for {email}: {response.get_json()}")
-    
-    data = response.get_json()
-    if "access_token" not in data:
-        raise Exception(f"No access_token in response: {data}")
-    
-    return data["access_token"]
+    resp = client.post("/api/auth/login", json={"email": email, "password": password})
+    assert resp.status_code == 200, resp.get_json()
+    return resp.get_json()["access_token"]
 
 
 @pytest.fixture
 def user_token(client, registered_user):
-    """Get auth token for regular user."""
     return _get_auth_token(client, registered_user.email, "pass1234")
 
 
 @pytest.fixture
 def admin_token(client, admin_user):
-    """Get auth token for admin user."""
     return _get_auth_token(client, admin_user.email, "admin123")
 
-
-# ──────────────────────────────────────────────────────────────
-# 4.  PARKING LOCATION HELPER
-# ──────────────────────────────────────────────────────────────
+# ╭─────────────────────────────────────────────────────────────╮
+# │ 4.  PARKING LOCATION FACTORY                                │
+# ╰─────────────────────────────────────────────────────────────╯
 @pytest.fixture
-def make_location(client, admin_token, app) -> Callable[[int, str], Dict[str, Any]]:
+def make_location(client, admin_token, app) -> Callable[..., _HybridModelDict]:
     """
-    Create a ParkingLocation + <total_slots> fresh slots, return its JSON dict.
-    
+    Factory: create a ParkingLocation plus N fresh slots and
+    return a dict‑AND‑model hybrid.
+
     Usage:
-        loc = make_location(total_slots=10, prefix="TestGarage")
+        loc = make_location(total_slots=20, prefix="Expo‑Garage")
+        client.post("/api/parking_location/locations", json={**loc})
     """
-    
-    def _create_location(total_slots: int = 10, prefix: str = "Garage") -> Dict[str, Any]:
-        # Import here to avoid circular imports
-        from models.parking_slot import ParkingSlot
-        
-        # 1️⃣ Create the location via HTTP API
-        location_data = {
+    from models.parking_slot import ParkingSlot
+    from models.parking_location import ParkingLocation
+    from schemas.parking_location_schema import ParkingLocationSchema
+
+    def _factory(total_slots: int = 10, prefix: str = "Garage") -> _HybridModelDict:
+        # 1️⃣  Build payload expected by the create‑location endpoint
+        payload = {
             "name": f"{prefix}-{uuid4()}",
             "address": f"{uuid4().hex[:8]} Test Street",
-            "lat": round(1.0 + (hash(prefix) % 1000) / 1000, 6),  # Generate unique coords
-            "lng": round(2.0 + (hash(prefix) % 1000) / 1000, 6),
+            "latitude": round(10 + (hash(prefix) % 1000) / 1000, 6),
+            "longitude": round(123 + (hash(prefix) % 1000) / 1000, 6),
         }
-        
-        response = client.post(
+
+        # 2️⃣  Create the location via HTTP to exercise the real route
+        resp = client.post(
             "/api/parking_location/locations",
-            json=location_data,
-            headers={"Authorization": f"Bearer {admin_token}"}
+            json=payload,
+            headers={"Authorization": f"Bearer {admin_token}"},
         )
-        
-        if response.status_code != 201:
-            raise Exception(f"Failed to create location: {response.get_json()}")
-        
-        location = response.get_json()["location"]
-        
-        # 2️⃣ Bulk‑insert parking slots for performance
-        if total_slots > 0:
+        assert resp.status_code == 201, resp.get_json()
+        loc_json = resp.get_json()["location"]
+
+        # 3️⃣  Add slots quickly in bulk (DB‑level, faster than API loop)
+        if total_slots:
             with app.app_context():
-                slot_objects = [
+                slots = [
                     ParkingSlot(
-                        slot_label=f"Slot-{i:03d}",  # Zero-padded for better sorting
-                        location_id=location["id"],
+                        slot_label=f"S-{i:03d}",
+                        location_id=loc_json["id"],
                         is_available=True,
                     )
                     for i in range(1, total_slots + 1)
                 ]
-                
-                _db.session.bulk_save_objects(slot_objects)
+                _db.session.bulk_save_objects(slots)
                 _db.session.commit()
-        
-        # 3️⃣ Add slot counts to the returned location dict
-        location["available_slots"] = total_slots
-        location["total_slots"] = total_slots
-        
-        return location
-    
-    return _create_location
 
+        loc_json["total_slots"] = total_slots
+        loc_json["available_slots"] = total_slots
 
-# ──────────────────────────────────────────────────────────────
-# 5.  ADDITIONAL HELPER FIXTURES
-# ──────────────────────────────────────────────────────────────
+        # 4️⃣  Wrap model + dict together
+        with app.app_context():
+            model = ParkingLocation.query.get(loc_json["id"])
+            # Serialise again to make sure field names match schema
+            api_dict = ParkingLocationSchema().dump(model)
+            # Keep the counts we injected
+            api_dict |= {"total_slots": total_slots, "available_slots": total_slots}
+            return _HybridModelDict(model, api_dict)
+
+    return _factory
+
+# ╭─────────────────────────────────────────────────────────────╮
+# │ 5.  ADDITIONAL HELPERS                                      │
+# ╰─────────────────────────────────────────────────────────────╯
 @pytest.fixture
 def auth_headers():
-    """Helper to create auth headers."""
-    def _headers(token: str) -> Dict[str, str]:
-        return {"Authorization": f"Bearer {token}"}
-    return _headers
+    return lambda tok: {"Authorization": f"Bearer {tok}"}
 
 
 @pytest.fixture
 def future_datetime():
-    """Helper to generate future datetime objects for reservations."""
-    def _future(hours: int = 1) -> datetime:
-        return datetime.now(timezone.utc) + timedelta(hours=hours)
-    return _future
+    return lambda hrs=1: datetime.now(timezone.utc) + timedelta(hours=hrs)
 
 
 @pytest.fixture
 def unique_email():
-    """Generate unique email addresses for testing."""
-    def _email(prefix: str = "test") -> str:
-        return f"{prefix}-{uuid4()}@test.dev"
-    return _email
+    return lambda prefix="test": f"{prefix}-{uuid4()}@test.dev"
 
-
-# ──────────────────────────────────────────────────────────────
-# 6.  DATABASE HELPERS
-# ──────────────────────────────────────────────────────────────
+# ╭─────────────────────────────────────────────────────────────╮
+# │ 6.  DB CLEAN‑UP                                            │
+# ╰─────────────────────────────────────────────────────────────╯
 @pytest.fixture
 def db_session(app):
-    """Direct access to database session for complex test setups."""
     return _db.session
 
 
 @pytest.fixture(autouse=True)
 def clean_db(app):
-    """Automatically clean database between tests."""
     yield
-    # Clean up after each test
     with app.app_context():
         _db.session.rollback()
 
-
-# ──────────────────────────────────────────────────────────────
-# 7.  TEST DATA FACTORIES
-# ──────────────────────────────────────────────────────────────
+# ╭─────────────────────────────────────────────────────────────╮
+# │ 7.  RESERVATION FACTORY                                     │
+# ╰─────────────────────────────────────────────────────────────╯
 @pytest.fixture
 def reservation_factory(client, user_token, make_location, future_datetime):
-    """Factory to create test reservations."""
-    def _create_reservation(
-        slot_id: int = None,
+    """
+    Quickly create a reservation for tests.
+
+    Example:
+        res = reservation_factory(hours_from_now=2)
+    """
+    def _factory(
+        slot_id: int | None = None,
         hours_from_now: int = 1,
         duration_hours: int = 2,
-        **kwargs
+        **overrides,
     ) -> Dict[str, Any]:
-        # Create location and get slot if not provided
+        # Auto‑provision a slot if caller didn’t give one
         if slot_id is None:
-            location = make_location(total_slots=5)
-            slots_response = client.get(f"/api/parking_slot/slots?location_id={location['id']}")
-            slot_id = slots_response.get_json()["slots"][0]["id"]
-        
-        start_time = future_datetime(hours_from_now)
-        end_time = start_time + timedelta(hours=duration_hours)
-        
+            loc = make_location(total_slots=5)
+            resp = client.get(f"/api/parking_slot/slots?location_id={loc['id']}")
+            slot_id = resp.get_json()["slots"][0]["id"]
+
+        start = future_datetime(hours_from_now)
+        end   = start + timedelta(hours=duration_hours)
+
         payload = {
             "slot_id": slot_id,
-            "start_ts": start_time.isoformat(),
-            "end_ts": end_time.isoformat(),
-            **kwargs
+            "start_ts": start.isoformat(),
+            "end_ts": end.isoformat(),
+            **overrides,
         }
-        
-        response = client.post(
+
+        resp = client.post(
             "/api/reservation/reservations",
             json=payload,
-            headers={"Authorization": f"Bearer {user_token}"}
+            headers={"Authorization": f"Bearer {user_token}"},
         )
-        
-        if response.status_code != 201:
-            raise Exception(f"Failed to create reservation: {response.get_json()}")
-        
-        return response.get_json()["reservation"]
-    
-    return _create_reservation
+        assert resp.status_code == 201, resp.get_json()
+        return resp.get_json()["reservation"]
+
+    return _factory
