@@ -65,7 +65,7 @@ class UserService:
     # ---------- DEACTIVATE ----------
     @staticmethod
     def deactivate_user(user: User) -> User:
-        user.is_active = False
+        user.active = False
         db.session.commit()
         return user
 

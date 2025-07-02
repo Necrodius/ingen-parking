@@ -25,9 +25,8 @@ class UserSchema(Schema):
         deserialize=lambda v: UserRole(v),
     )
 
-    # expose Boolean column `is_active` as `active`
     active = fields.Function(
-        serialize=lambda obj: obj.is_active,
+        serialize=lambda obj: obj.active,
         deserialize=lambda v: bool(v),
     )
 

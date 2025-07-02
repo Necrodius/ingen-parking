@@ -104,7 +104,7 @@ def ensure_drivers(total_needed: int) -> list[User]:
             first_name=f"Driver{next_idx}",
             last_name="Davao",
             role=UserRole.user,
-            is_active=(next_idx % 5 != 0),
+            active=(next_idx % 5 != 0),
         )
         drivers.append(driver)
         next_idx += 1

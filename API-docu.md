@@ -227,12 +227,12 @@ Common status codes:
 
 _(Core columns only – see source code for full details)_
 
-| Table               | Columns                                                                                                                 |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `users`             | `id`, `email`(unique), `password_hash`, `first_name`, `last_name`, `role` enum, `is_active`, `created_at`, `updated_at` |
-| `parking_locations` | `id`, `name`, `address`, `lat`, `lng`, timestamps                                                                       |
-| `parking_slots`     | `id`, `slot_label`, `is_available`, `location_id` FK                                                                    |
-| `reservations`      | `id`, `user_id` FK, `slot_id` FK, `start_ts`, `end_ts`, `status` enum, timestamps                                       |
+| Table               | Columns                                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `users`             | `id`, `email`(unique), `password_hash`, `first_name`, `last_name`, `role` enum, `active`, `created_at`, `updated_at` |
+| `parking_locations` | `id`, `name`, `address`, `lat`, `lng`, timestamps                                                                    |
+| `parking_slots`     | `id`, `slot_label`, `is_available`, `location_id` FK                                                                 |
+| `reservations`      | `id`, `user_id` FK, `slot_id` FK, `start_ts`, `end_ts`, `status` enum, timestamps                                    |
 
 ---
 

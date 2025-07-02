@@ -43,8 +43,8 @@ def login_user():
         if not user:
             return jsonify({"error": "Invalid credentials"}), 401
 
-        # 🚫 Block de‑activated accounts (column is `is_active`)
-        if not user.is_active:
+        # Block de‑activated accounts
+        if not user.active:
             return jsonify({"error": "Account disabled. Contact an administrator."}), 403
 
         # Issue JWT

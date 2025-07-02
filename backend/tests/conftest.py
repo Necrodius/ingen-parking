@@ -127,7 +127,7 @@ def _create_or_update_user(email: str, password: str, role: UserRole, **kwargs) 
         first_name=kwargs.get("first_name", email.split("@")[0].title()),
         last_name=kwargs.get("last_name", "Test"),
         role=role,
-        is_active=kwargs.get("is_active", True),
+        active=kwargs.get("active", True),
     )
     _db.session.add(user)
     _db.session.commit()

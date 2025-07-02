@@ -112,7 +112,7 @@ class TestUserRoutes:
                          headers={"Authorization": f"Bearer {admin_token}"})
         assert res.status_code == 200
         data = res.get_json()
-        assert data["user"]["is_active"] is False
+        assert data["user"]["active"] is False
     
     def test_change_password_success(self, client, user_token, registered_user):
         """Test successful password change"""

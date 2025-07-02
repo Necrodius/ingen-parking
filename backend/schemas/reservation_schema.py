@@ -9,9 +9,9 @@ from models.reservation import Reservation, ReservationStatus
 class ReservationSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = Reservation
-        load_instance = False      # ← return dict, not model instance
+        load_instance = False
         include_fk = True
-        ordered = True             # keep JSON field order stable
+        ordered = True
 
     # ---------- READ‑ONLY FIELDS ----------
     id         = fields.Integer(dump_only=True)
