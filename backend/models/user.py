@@ -19,7 +19,7 @@ class User(db.Model, TimestampMixin):
     first_name    = Column(String(120), nullable=False)
     last_name     = Column(String(120), nullable=False)
     role          = Column(PgEnum(UserRole, name="user_role"), nullable=False, server_default=text("'user'"))
-    is_active     = Column(Boolean, nullable=False, server_default=text("true"))
+    active        = Column(Boolean, nullable=False, server_default=text("true"))
     reservations  = relationship("Reservation", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):

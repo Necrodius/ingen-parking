@@ -9,7 +9,7 @@ from models.parking_location import ParkingLocation
 class ParkingLocationSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = ParkingLocation
-        load_instance = True
+        load_instance = False
         include_fk = True
         ordered = True
 

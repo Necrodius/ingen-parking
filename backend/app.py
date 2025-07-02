@@ -57,7 +57,7 @@ def create_app() -> Flask:
     )
 
     # Start the scheduler once (works with Gunicorn preload & Flask reload)
-    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    if not app.debug:
         scheduler.start()
         app.logger.info("✅ APScheduler started. Jobs: %s", scheduler.get_jobs())
 

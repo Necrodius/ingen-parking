@@ -9,7 +9,7 @@ from models.parking_slot import ParkingSlot
 class ParkingSlotSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = ParkingSlot
-        load_instance = True
+        load_instance = False
         include_fk = True
         ordered = True
 
