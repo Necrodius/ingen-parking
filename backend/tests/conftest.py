@@ -34,7 +34,12 @@ def app():
     with flask_app.app_context():
         _db.create_all()
 
-        # ── Bind Marshmallow schemas to this session ─────────────────
+        # ── Monkey‑patch: set default session for all Marshmallow‑SQLAlchemy schemas ──
+        from marshmallow_sqlalchemy import SQLAlchemySchema, SQLAlchemyAutoSchema
+        SQLAlchemySchema.opts.sqla_session = _db.session
+        SQLAlchemyAutoSchema.opts.sqla_session = _db.session
+
+        # ── Bind Marshmallow schemas to this session ───────────────────────
         from schemas import (
             parking_location_schema,
             parking_slot_schema,
@@ -47,7 +52,7 @@ def app():
         parking_slot_schema.parking_slots_schema.context["session"] = _db.session
         reservation_schema.reservation_schema.context["session"] = _db.session
         reservation_schema.reservations_schema.context["session"] = _db.session
-        # ─────────────────────────────────────────────────────────────
+        # ──────────────────────────────────────────────────────────────────
 
         yield flask_app
 
