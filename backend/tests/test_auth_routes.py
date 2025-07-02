@@ -2,6 +2,11 @@
 # AUTH ROUTES TESTS
 # ══════════════════════════════════════════════════════════════════════════════
 
+from uuid import uuid4
+
+from models.user import UserRole
+
+
 class TestAuthRoutes:
     """Test authentication endpoints"""
     
