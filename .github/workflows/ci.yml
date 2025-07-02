@@ -1,6 +1,5 @@
 # ci.yml – Run tests on every push to dev.  If tests pass, automatically
 # fast‑forward‑merge dev to main.
-# TO DO: Protect main in repo settings so only the GitHub Actions app can push.
 
 name: Backend CI & Auto‑Merge
 
