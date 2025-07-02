@@ -1,0 +1,4 @@
+# backend/requirements-dev.txt
+pytest              # Test runner
+pytest-flask        # Handy fixtures for Flask apps
+pytest-cov          # Coverage report

@@ -1,0 +1,61 @@
+# ci.yml – Run tests on every push to dev.  If tests pass, automatically
+# fast‑forward‑merge dev → main. Protect main in repo settings so only
+# the GitHub Actions app can push.
+
+name: Backend CI & Auto‑Merge
+
+# ------------------------------------------------------------
+# 1. Trigger: push events that land on the dev branch only
+# ------------------------------------------------------------
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write      # required so the merge step can push to main
+  pull-requests: write # needed for some auto‑merge actions
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend   # all commands execute inside /backend
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- Python toolchain ----------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'       # match your local dev/runtime
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      # ---------- Run pytest ----------
+      - name: Run unit tests with coverage
+        run: |
+          pytest -v --cov --cov-report=term-missing
+
+  merge-to-main:
+    runs-on: ubuntu-latest
+    needs: test          # only runs if "test" job succeeds
+    if: success()        # extra guard (redundant but explicit)
+    steps:
+      - uses: actions/checkout@v4
+
+      # Use peter-evans/merge-branch to FF‑merge dev into main
+      - name: Merge dev → main
+        uses: peter-evans/merge-branch@v5
+        with:
+          from: dev
+          target: main
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          delete_source_branch: false
+          commit_message: |
+            chore(ci): automated fast‑forward merge of dev into main after green tests 🚀
