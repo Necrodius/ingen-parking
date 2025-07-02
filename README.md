@@ -76,6 +76,8 @@ Create the `.env` file by renaming `.env.sample` to `.env` and changing environm
 
 ### 3. Start the application
 
+Uncomment docker-compose.yml:28-30 and comment out entrypoint.sh:4-10 (on first initial build)
+
 Make sure Docker is installed and running, then run:
 
 ```bash
